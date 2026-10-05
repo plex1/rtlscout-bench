@@ -1,0 +1,66 @@
+# The campaign matrix: the one file to edit.
+#
+#   tasks    what is scored: a benchmark plus its cost metric and the conditions that belong to that metric
+#   entries  who is scored:  a model under one fixed set of agent conditions = one leaderboard row
+#
+# Validate and print the resolved matrix:   python -m rtlscout_bench.config
+# Field reference:                          docs/manual.md, "Adding a task" and "Adding a model"
+
+suite: suite-v1                        # written into every run record; bump when a benchmark or the scoring changes
+policy:
+  open_weights_only: true              # record.py and site.py refuse any model not marked open_weights in data/models.json
+
+tasks:
+  tpu-adp:
+    benchmark: tpu                     # -> benchmarks/tpu_verilog, benchmarks/tpu_spire
+    cost_metric: area_delay_product    # rtlscout --cost-metric
+    flags: [--skip-cec]
+  jpeg-adp:                            # example of a second task (benchmark not in suite-v1)
+    benchmark: jpeg_idct_2d
+    cost_metric: area_delay_product
+    flags: [--skip-cec]
+    enabled: false
+  qr-adp-fast:                         # a different metric for a heavy design
+    benchmark: qr
+    cost_metric: area_delay_product_fast
+    flags: [--skip-cec]
+    env: {RTLSCOUT_ADP_FAST_TIMEOUT: "3600"}
+    heavy: true                        # scheduler: never two heavy tasks at once
+    enabled: false
+  tpu-area-at-500:                     # same benchmark, different objective = different task
+    benchmark: tpu
+    cost_metric: area
+    target_delay: 500                  # rtlscout --target-delay
+    flags: [--skip-cec]
+    enabled: false
+
+defaults:
+  tasks: [tpu-adp]                     # what every entry runs unless it lists its own
+  language: verilog
+  repeats: 3
+  max_steps: 60
+  reasoning_effort: default            # provider default; else low | medium | high -> RTLSCOUT_REASONING_EFFORT
+  agent_backend: react                 # the built-in loop (the only backend the tooling accepts for now)
+  flags: []                            # agent-side flags, added to the task's flags
+  enabled: true
+
+entries:                               # open-weights models only, for now
+  - id: glm-5.2
+    model: openrouter:z-ai/glm-5.2
+  - id: kimi-k3
+    model: openrouter:moonshotai/kimi-k3
+  - id: nemotron-3-ultra
+    model: openrouter:nvidia/nemotron-3-ultra-550b-a55b
+  - id: kimi-k3-high                   # same model, second row with a different reasoning effort
+    model: openrouter:moonshotai/kimi-k3
+    reasoning_effort: high
+  - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
+    model: openrouter:z-ai/glm-5.2
+    language: spirehdl
+    flags: [--fsm-optimize]
+    enabled: false
+  - id: glm-5.2-spire-autoconfig
+    model: openrouter:z-ai/glm-5.2
+    language: spirehdl
+    flags: [--fsm-optimize, --arith-autoconfig]
+    enabled: false
