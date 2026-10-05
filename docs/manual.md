@@ -164,9 +164,9 @@ pytest -q
 ```
 
 ```text
-.........................................ss............................. [ 62%]
-............................................                             [100%]
-114 passed, 2 skipped in 5.08s
+..........................................ss............................ [ 61%]
+.............................................                            [100%]
+115 passed, 2 skipped in 5.46s
 ```
 
 The two skipped tests are the smoke commands above, which need rtlscout and the EDA tools; inside the container
