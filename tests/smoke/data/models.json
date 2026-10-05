@@ -1,0 +1,12 @@
+{
+ "schema": 1,
+ "price_unit": "USD per million tokens",
+ "models": {
+  "fake:simple_adder_pass": {
+   "name": "Scripted fake model",
+   "vendor": "rtlscout test double",
+   "open_weights": false,
+   "price_per_mtok": {"input": 0.0, "output": 0.0}
+  }
+ }
+}

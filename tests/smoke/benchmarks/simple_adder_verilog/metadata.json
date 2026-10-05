@@ -1,0 +1,10 @@
+{
+  "name": "simple_adder_verilog",
+  "module_name": "adder",
+  "tb_module": "tb",
+  "language": "verilog",
+  "starting_point": "context/starting_point.sv",
+  "source": {
+    "origin": "copy of benchmarks/simple_adder from github.com/huawei-csl/rtlscout (description.txt and tb.sv unchanged), plus a starting point so the campaign has a baseline to measure"
+  }
+}

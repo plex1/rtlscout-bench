@@ -1,0 +1,23 @@
+# Smoke matrix: the whole campaign -> record -> site pipeline on rtlscout's scripted `fake:` model.
+# No API key, no cost, a few seconds. Used by docs/manual.md ("Setup") and by the manual check in CI.
+# It never touches the real data/: pass --data and --runs-dir pointing at a scratch directory.
+
+suite: smoke
+policy:
+  open_weights_only: false             # the scripted fake model is not a model; nothing here is published
+
+benchmarks_root: benchmarks            # relative to this file: tests/smoke/benchmarks
+
+tasks:
+  adder-transistors:
+    benchmark: simple_adder            # -> tests/smoke/benchmarks/simple_adder_verilog
+    cost_metric: transistors
+
+defaults:
+  tasks: [adder-transistors]
+  repeats: 1
+  max_steps: 5
+
+entries:
+  - id: fake-adder
+    model: fake:simple_adder_pass      # a scripted three-step run shipped with rtlscout
