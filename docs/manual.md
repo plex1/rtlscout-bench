@@ -132,7 +132,13 @@ python -m rtlscout.run_benchmark --benchmark simple_adder --model fake:simple_ad
 ```
 <!-- doctest-expect: Best: PASS -->
 
-<!-- TO-VERIFY -->
+```text
+Best design saved: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261005_231836/best_design
+Results stored in: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261005_231836
+
+Best: PASS | 308 transistors (step 1)
+```
+
 The run must end with a line starting `Best: PASS`. Then run this repository's whole pipeline (campaign, record,
 check, site) on the same fake model, using the smoke matrix in `tests/smoke/` and a scratch directory, so the real
 `data/` is not touched:
@@ -150,7 +156,27 @@ python -m rtlscout_bench.site --matrix tests/smoke/campaign_matrix.yaml --data /
 <!-- doctest-expect: : OK -->
 <!-- doctest-expect: 1 task(s), 1 row(s), 1 run(s) -->
 
-<!-- TO-VERIFY -->
+```text
+suite smoke · rtlscout 0.2.0 · spire-hdl 0.4.0 · parallel 2
+  adder-transistors / fake-adder           0 of 1 runs done, 1 to launch
+[start] baseline adder-transistors/verilog
+[start] adder-transistors/fake-adder r0
+[baseline] adder-transistors/verilog: ok  cost 308.00
+[done] adder-transistors/fake-adder r0: completed  best 308.00  run 20261005_231938  (0 min)
+campaign smoke: 1 of 1 runs completed, 1 baseline(s) measured -> /tmp/rtlscout-bench-smoke/runs/campaigns/smoke.json
+campaign /tmp/rtlscout-bench-smoke/runs/campaigns/smoke.json
+  recorded adder-transistors/fake-adder/20261005_231938  best 308.00
+recorded 1, already recorded 0, skipped 0, refused 0
+data check: 1 records (1 selected, 0 excluded), 1 leaderboard file(s), 1 models, open-weights policy off: OK
+adder-transistors: adder-transistors  [cost; lower is better]
+starting point (Verilog): 308.00 = 308.000
+#  Entry                n  mean ± sd  best run  vs. start  runtime (min)  $/run  suite
+-  -------------------  -  ---------  --------  ---------  -------------  -----  -----
+1  Scripted fake model  1    308.000   308.000      +0.0%              0    0.0  smoke
+
+wrote /tmp/rtlscout-bench-smoke/_site/index.html and /tmp/rtlscout-bench-smoke/_site/data.js (1 KB): 1 task(s), 1 row(s), 1 run(s)
+```
+
 Look for `campaign smoke: 1 of 1 runs completed, 1 baseline(s) measured`, `recorded 1`, a `data check: ... OK`
 line, and `wrote /tmp/rtlscout-bench-smoke/_site/index.html`.
 
@@ -329,9 +355,23 @@ The report names the file, the line and the pattern, never the matching text.
 
 A campaign measures the starting point of each task and launches the runs the matrix still needs.
 
-<!-- TO-VERIFY -->
 ```bash
 python -m rtlscout_bench.campaign --baselines-only     # starting points only: a few minutes, no API cost
+```
+
+```text
+suite suite-v1 · rtlscout 0.2.0 · spire-hdl 0.4.0 · parallel 2
+  tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
+  tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
+  tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
+  tpu-adp / kimi-k3-high                   0 of 3 runs done, 3 to launch
+[start] baseline tpu-adp/verilog
+[baseline] tpu-adp/verilog: ok  cost 4,624,408.88
+campaign 20261005_231945: 0 of 0 runs completed, 1 baseline(s) measured -> runs/campaigns/20261005_231945.json
+```
+
+<!-- TO-VERIFY -->
+```bash
 python -m rtlscout_bench.campaign --parallel 2         # everything that is missing
 ```
 
@@ -385,10 +425,26 @@ recorded: the records keep everything the page and the tables need.
 **Watching progress.** The campaign prints `[start]` and `[done]` lines. For one run in detail, follow its log;
 for the whole campaign, print its status table (it re-reads the run directories):
 
-<!-- TO-VERIFY -->
 ```bash
 tail -f runs/logs/<campaign>/tpu-adp__glm-5.2__r0.log
 python -m rtlscout_bench.tables --campaign runs/campaigns/<campaign>.json
+```
+
+For the smoke campaign of [Setup](#2-setup) (`--campaign /tmp/rtlscout-bench-smoke/runs/campaigns/smoke.json`) the
+status table is:
+
+```text
+# Campaign smoke · smoke · rtlscout 0.2.0
+
+| Task | Entry | n | Start | Best (median) | vs. start |
+|---|---|---|---|---|---|
+| `adder-transistors` | `fake-adder` | 1 | 308 | 308 (308) | +0.0% |
+
+## Runs
+
+| Task | Entry | Rep | Run | Status | Best (eval) | Evals |
+|---|---|---|---|---|---|---|
+| `adder-transistors` | `fake-adder` | 0 | `20261005_231845` | completed | 308 (eval 1) | 1 |
 ```
 
 **What a failed run looks like.** Each run ends in one of three states, shown in its `[done]` line, in the
@@ -638,10 +694,40 @@ run list, is reported as "without a passing design", and is not part of the mean
 flags. For `tpu-adp` in Verilog the seed campaigns measured 4,624,408.88 µm²·ps (4,604 µm² × 1,004.4 ps). To
 measure it yourself, inside the container:
 
-<!-- TO-VERIFY -->
 ```bash
 python -m rtlscout.run_eval benchmarks/tpu_verilog/context/starting_point.v --benchmark benchmarks/tpu_verilog --cost-metric area_delay_product --skip-cec
 ```
+
+```text
+Workdir:  /tmp/run_eval_geqf4suf (sandbox)
+Design:   starting_point.v
+Language: verilog
+Metric:   area_delay_product
+Top:      tpu
+
+[get_ppa] shortened 43636 over-long netlist identifiers
+=== Evaluation Result ===
+Correctness: PASS
+  Lint: OK
+  Sim:  OK
+  Checks (fails/tot): 0/6782
+Cost: OK
+  area_delay_product: 4624408.882038144
+  Metrics:
+    area_delay_product: 4624408.882038144
+    delay: 1004.4171
+    area: 4604.072234570822
+    power_probabilistic_fixed_clock: 0.0421
+    target_delay: 500.0
+    worst_slack: -518.57
+  Worst timing path:
+    [the critical path, about 55 lines]
+
+Duration: 213.7s
+```
+
+With rtlscout 0.2.0 and the suite-v1 vectors this reproduces the seed campaigns' number: 6,782 checks pass and the
+cost is 4,624,408.88.
 
 **The row.** Per entry the table reports the mean and the sample standard deviation (n - 1 in the denominator)
 of the run scores, the best single run, and the mean relative to the starting point.
@@ -911,10 +997,25 @@ A new model additionally needs an entry in `campaign_matrix.yaml`, as a pull req
    `--benchmark` directory provides them, not the submitted folder) and compares the cost with `best.cost` of
    the record:
 
-   <!-- TO-VERIFY -->
    ```bash
    python -m rtlscout.run_eval data/runs/tpu-adp/<entry>/<run-id>/best_design/<best.file> --benchmark benchmarks/tpu_verilog --cost-metric area_delay_product --skip-cec
    ```
+
+   For the seed run `glm-5.2/20260727_085945` (`best.file` is `design_csa_nr.sv`, `best.cost` is 2755208.05) the
+   result block reads:
+
+   ```text
+   === Evaluation Result ===
+   Correctness: PASS
+     Lint: OK
+     Sim:  OK
+     Checks (fails/tot): 0/6782
+   Cost: OK
+     area_delay_product: 2755208.0549845924
+   ```
+
+   All twelve seed designs were re-evaluated this way with rtlscout 0.2.0: each passes the 6,782 checks of the
+   suite-v1 testbench and reproduces its recorded cost.
 
 3. The pull request is merged and the maintainer publishes: `python -m rtlscout_bench.publish` shows the table
    before and after, and bumps the pointer.
@@ -968,16 +1069,24 @@ git submodule update --init
 
 If the tools report `data/models.json not found`, the submodule is not checked out: `git submodule update --init`.
 
-**The unpatched-Verilator warning.** The published image contains Verilator 5.040 with a fix for sequential
-user-defined primitives; its version string carries `(mod)`. Without the fix, gate-level simulations of netlists
-that use vendor cell models with such primitives can be silently wrong. If rtlscout's container setup prints
-`WARNING: UNPATCHED Verilator detected`, or this check does not show `(mod)`, you are not running the published
-image; do not publish numbers measured there.
+**Verilator and sequential user-defined primitives.** Verilator 5.040 mis-simulates sequential user-defined
+primitives, which some vendor cell models use for flip-flops; a gate-level simulation of such a netlist can be
+silently wrong. rtlscout's image recipe carries a fix (a Verilator built with it shows `(mod)` in its version
+string). The image published as `ghcr.io/huawei-csl/rtlscout:slim` when this manual was written predates the fix:
 
-<!-- TO-VERIFY -->
 ```bash
 verilator --version
 ```
+
+```text
+Verilator 5.040 2025-08-30 rev v5.040
+```
+
+The leaderboard does not depend on it: on ASAP7, rtlscout re-simulates netlists with functional cell models that
+it generates from the liberty file, and these contain no such primitives
+(`NETLIST_FUNCTIONAL_SIM_CELL_MODELS` in `rtlscout/tech_eval/ppa_extract/core/template.py`, on by default). The fix
+matters when that switch is turned off or a task uses a technology without functional models; measure such a task
+only with a Verilator that reports `(mod)`.
 
 **`rtlscout is not installed in this environment`.** `campaign` was started outside the container, or before
 `uv pip install -e .`. Dry runs, tables, the site build and the data checks work without rtlscout; launching
