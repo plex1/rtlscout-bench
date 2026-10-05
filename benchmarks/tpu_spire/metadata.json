@@ -1,0 +1,15 @@
+{
+  "name": "tpu_spire",
+  "module_name": "tpu",
+  "tb_module": "tb",
+  "golden_reference": "context/starting_point.py",
+  "golden_reference_language": "spirehdl",
+  "language": "spirehdl",
+  "starting_point": "context/starting_point.py",
+  "cost_metric": ["area_delay_product", "sky130_adp"],
+  "source": {
+    "origin": "github.com/zeroasiccorp/logikbench (commit e8c7c43, MIT), benchmarks/large/tpu — SpireHDL register-for-register mirror (PE mesh, skew chains and valid pipe generated with Python loops); see tpu_verilog for the originals",
+    "design": "8x8 weight-stationary systolic matmul tile (DW=8 signed operands, ACCW=32), input/output skew networks, 2N-1=15-cycle latency, w_valid stalls+reloads; tb.sv and vectors.dat byte-identical to tpu_verilog",
+    "oracle": "vectors.dat = per-cycle stimulus + the ORIGINAL RTL's per-cycle (c_valid, c_data) trace (_debug/gen_stimuli.py + tb_golden_dump.sv); c_valid checked every cycle, c_data when valid"
+  }
+}

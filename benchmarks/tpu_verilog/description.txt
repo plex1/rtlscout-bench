@@ -1,0 +1,41 @@
+Weight-stationary systolic matrix-multiply tile (a Google-TPU-style MXU),
+module name `tpu`, implementing the EXACT per-cycle behavior of the logikbench
+`tpu` benchmark (zeroasiccorp/logikbench, MIT).
+
+FUNCTION: computes C = A * B tile products on an 8x8 grid of processing
+elements. B (the "weight" matrix, 8-bit signed) is loaded into the array and
+held; A (the "activation" matrix, 8-bit signed) streams through; result rows
+C (32-bit signed) drain out the bottom.
+
+PROTOCOL:
+  1. Weight load: assert w_valid for 8 cycles; w_data carries one weight row
+     per cycle, 8 signed bytes packed { col 7 ... col 0 }, BOTTOM matrix row
+     first (cycle k carries B[7-k][*]; the weights shift south). After 8
+     cycles PE(i,j) holds B[i][j].
+  2. Compute: assert a_valid while streaming A one row per cycle (packed the
+     same way). Row m of the result, C[m][*] packed { col 7 ... col 0 } as 8
+     signed 32-bit words, appears on c_data with c_valid high exactly 15
+     (= 2*8-1) compute cycles after its A row was accepted.
+  - The array advances only while w_valid is low: asserting w_valid stalls
+    any in-flight computation (and reloads weights). Zeros are injected while
+    a_valid is low, so idle/drain cycles add nothing to the accumulators.
+  - Multiple A tiles may stream back-to-back against the same loaded weights.
+
+CYCLE ACCURACY: c_valid is compared against the original design EVERY cycle;
+c_data is compared on every cycle where c_valid is high. The 15-cycle
+compute-latency and the stall semantics are part of the contract.
+
+Ports:
+  clk, rst (async active-high reset, asserted only before the stream begins)
+  w_valid, w_data[63:0]
+  a_valid, a_data[63:0]
+  c_valid, c_data[255:0]
+
+A working starting point is provided: `context/starting_point.v` is the
+original logikbench RTL (tpu_pe / tpu_array / tpu: PE mesh, per-row input
+skew, per-column output de-skew, valid pipeline). It passes all 830 golden
+cycles (328 result rows: directed zero/identity/extreme tiles, random tiles,
+back-to-back streams, a_valid gaps, mid-drain weight reloads, random soak).
+Study it, then optimize while preserving the cycle-accurate behavior. The
+sibling benchmark `tpu_spire` shares the identical testbench and vectors
+with a SpireHDL starting point.
