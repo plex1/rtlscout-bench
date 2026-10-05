@@ -1,0 +1,550 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>RTL Scout Leaderboard</title>
+<meta name="description" content="How well do LLM agents optimize RTL? The RTL Scout leaderboard: best verified area-delay product reached per model on the same starting design, with every run, its cost and its transcript.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<!--
+  Page template of the RTL Scout leaderboard. It contains no results: everything shown is read from data.js,
+  which `python -m rtlscout_bench.site` generates next to this file from the data repository.
+-->
+<style>
+:root{
+  color-scheme:light;
+  --bg:#f3f5f8; --surface:#ffffff; --surface-2:#e9edf2; --line:#d5dbe3; --line-soft:#e6eaef;
+  --ink:#141d29; --ink-2:#4e5a68; --ink-3:#7b8695;
+  --accent:#0d6b8a; --accent-ink:#0a5771; --accent-soft:#d9eef5;
+  --warm:#8a4e12; --warm-soft:#f6e6d6;
+  --good:#0ca30c; --bad:#d03b3b;
+  --s1:#2a78d6; --s2:#eb6834; --s3:#1baf7a; --s4:#eda100; --s5:#e87ba4; --s6:#008300; --s7:#4a3aa7;
+  --shadow:0 1px 2px rgba(20,29,41,.06), 0 8px 24px -12px rgba(20,29,41,.18);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    color-scheme:dark;
+    --bg:#0f151c; --surface:#161e27; --surface-2:#1e2833; --line:#2c3844; --line-soft:#232d38;
+    --ink:#e8edf2; --ink-2:#aab5c1; --ink-3:#7f8b98;
+    --accent:#4fb6d4; --accent-ink:#7fcbe2; --accent-soft:#12303b;
+    --warm:#e0a068; --warm-soft:#33261a;
+    --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+    --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+  }
+}
+:root[data-theme="dark"]{
+  color-scheme:dark;
+  --bg:#0f151c; --surface:#161e27; --surface-2:#1e2833; --line:#2c3844; --line-soft:#232d38;
+  --ink:#e8edf2; --ink-2:#aab5c1; --ink-3:#7f8b98;
+  --accent:#4fb6d4; --accent-ink:#7fcbe2; --accent-soft:#12303b;
+  --warm:#e0a068; --warm-soft:#33261a;
+  --s1:#3987e5; --s2:#d95926; --s3:#199e70; --s4:#c98500; --s5:#d55181; --s6:#008300; --s7:#9085e9;
+  --shadow:0 1px 2px rgba(0,0,0,.4), 0 8px 24px -12px rgba(0,0,0,.6);
+}
+*{box-sizing:border-box}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font:15px/1.55 "IBM Plex Sans",system-ui,-apple-system,"Segoe UI",Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+a{color:var(--accent-ink);text-decoration:none;border-bottom:1px solid transparent}
+a:hover{border-bottom-color:currentColor}
+code,.mono,td.num,th.num,.tick,.stat b{font-family:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-variant-numeric:tabular-nums}
+code{font-size:.9em;background:var(--surface-2);padding:.1em .35em;border-radius:3px}
+h1,h2,h3{margin:0;line-height:1.2;text-wrap:balance;font-weight:600;letter-spacing:-.01em}
+h2{font-size:1.5rem}
+h3{font-size:1.05rem}
+p{margin:0}
+[hidden]{display:none!important}
+.wrap{max-width:1140px;margin:0 auto;padding-inline:clamp(16px,4vw,40px)}
+/* header */
+.top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
+.top .wrap{display:flex;align-items:center;gap:22px;min-height:56px;flex-wrap:wrap}
+.brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;color:var(--ink);border:0}
+.brand .mark{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:6px;background:var(--accent);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500}
+.brand small{font-weight:400;color:var(--ink-3)}
+nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
+nav a{padding:6px 10px;border-radius:6px;color:var(--ink-2);font-size:.92rem;border:0}
+nav a:hover{background:var(--surface-2);color:var(--ink)}
+/* hero */
+.hero{padding-block:44px 28px}
+.hero .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
+.hero h1{font-size:clamp(1.9rem,4.2vw,2.8rem);margin-top:8px;max-width:22ch}
+.hero .lede{max-width:66ch;color:var(--ink-2);margin-top:14px;font-size:1.05rem}
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:1px;background:var(--line);border:1px solid var(--line);border-radius:8px;overflow:hidden;margin-top:28px}
+.stat{background:var(--surface);padding:14px 16px}
+.stat span{display:block;font-size:.78rem;color:var(--ink-3);letter-spacing:.02em}
+.stat b{display:block;font-size:1.45rem;font-weight:500;margin-top:2px;letter-spacing:-.01em}
+.stat i{display:block;font-style:normal;font-size:.8rem;color:var(--ink-2);margin-top:2px}
+.tasks{margin-top:22px}
+/* sections */
+section{padding-block:36px;border-top:1px solid var(--line-soft)}
+.sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
+.sec-head p{color:var(--ink-2);max-width:70ch;margin-top:6px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface);flex-wrap:wrap}
+.seg button{appearance:none;border:0;background:transparent;color:var(--ink-2);font:inherit;font-size:.9rem;padding:7px 14px;cursor:pointer}
+.seg button[aria-pressed="true"]{background:var(--accent);color:#fff}
+.seg button:focus-visible{outline:2px solid var(--accent);outline-offset:-2px}
+.segs{display:flex;gap:10px;flex-wrap:wrap}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:10px;box-shadow:var(--shadow)}
+.card .cap{padding:12px 16px;border-top:1px solid var(--line-soft);color:var(--ink-2);font-size:.85rem}
+.empty{padding:40px 24px;text-align:center;color:var(--ink-2)}
+.empty h3{color:var(--ink);margin-bottom:8px}
+/* tables */
+.tbl{overflow-x:auto}
+table{border-collapse:collapse;width:100%;font-size:.92rem}
+th,td{padding:9px 12px;text-align:left;vertical-align:top;border-bottom:1px solid var(--line-soft);white-space:nowrap}
+th{font-weight:500;color:var(--ink-3);font-size:.78rem;letter-spacing:.03em;text-transform:uppercase;background:var(--surface)}
+th.num,td.num{text-align:right}
+tbody tr:last-child td{border-bottom:0}
+tbody tr:hover td{background:color-mix(in srgb,var(--surface-2) 55%,transparent)}
+td.model{font-weight:500}
+.rank{color:var(--ink-3);font-family:"IBM Plex Mono",monospace;width:2.2em}
+.pill{display:inline-block;font-size:.72rem;padding:1px 7px;border-radius:99px;background:var(--surface-2);color:var(--ink-2);margin-left:6px;vertical-align:1px;font-weight:400}
+.pill.open{background:var(--accent-soft);color:var(--accent-ink)}
+.pill.seed{background:var(--warm-soft);color:var(--warm)}
+.pills{margin:3px 0 0 17px;font-weight:400}
+.pills .pill{margin:0 6px 0 0}
+.delta{color:var(--good)}
+.delta.worse{color:var(--bad)}
+.sd{color:var(--ink-3);font-size:.85em}
+.bar{display:inline-block;height:6px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-right:8px}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:7px}
+tr.top td.model{color:var(--accent-ink)}
+details{border-top:1px solid var(--line-soft)}
+details:first-child{border-top:0}
+details summary{cursor:pointer;padding:10px 16px;color:var(--ink-2);font-size:.9rem;list-style:none;display:flex;align-items:center;gap:8px}
+details summary::before{content:"";width:6px;height:6px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(-45deg);transition:transform .15s}
+details[open] summary::before{transform:rotate(45deg)}
+details summary::-webkit-details-marker{display:none}
+details .tbl{padding:0 0 4px}
+details table{font-size:.85rem}
+details td,details th{padding:6px 12px}
+/* charts */
+.chart{padding:14px 12px 6px}
+svg{display:block;width:100%;height:auto;overflow:visible}
+svg text{font-family:"IBM Plex Mono",ui-monospace,monospace;font-size:11px;fill:var(--ink-2)}
+svg .lbl{font-family:"IBM Plex Sans",system-ui,sans-serif;font-size:12px;fill:var(--ink)}
+svg .axis{stroke:var(--line);stroke-width:1}
+svg .grid{stroke:var(--line-soft);stroke-width:1}
+svg .ref{stroke:var(--ink-3);stroke-width:1}
+svg .dot{fill:var(--accent);stroke:var(--surface);stroke-width:2}
+svg .mean{stroke:var(--ink);stroke-width:2}
+svg .sdbar{stroke:var(--ink-3);stroke-width:1}
+svg .hit{fill:transparent;cursor:crosshair}
+.legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:6px 16px 12px;font-size:.82rem;color:var(--ink-2)}
+.legend button{appearance:none;border:0;background:none;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0}
+.legend button[aria-pressed="false"]{opacity:.35}
+.tip{position:fixed;z-index:20;pointer-events:none;background:var(--ink);color:var(--bg);font-size:.8rem;line-height:1.4;padding:7px 10px;border-radius:6px;max-width:300px;box-shadow:var(--shadow);opacity:0;transition:opacity .08s}
+.tip b{font-weight:600}
+.tip .mono{font-size:.78rem;opacity:.85}
+/* objective */
+.objective{padding:18px 22px;margin-top:14px;display:grid;gap:10px}
+.objective p{color:var(--ink-2);max-width:78ch}
+.objective b{color:var(--ink);font-weight:600}
+/* notes */
+.notes{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:20px 32px;margin-top:18px}
+.notes h3{margin-bottom:6px}
+.notes p,.notes li{color:var(--ink-2);font-size:.92rem}
+.fn{font-size:.85rem;color:var(--ink-2);margin-top:18px;max-width:86ch}
+.fn ol,.fn ul{margin:6px 0 0;padding-left:20px}
+.fn li{margin-top:4px}
+.fn strong{color:var(--ink)}
+footer{padding-block:28px 44px;border-top:1px solid var(--line-soft);color:var(--ink-3);font-size:.85rem}
+footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top"><div class="wrap">
+  <a class="brand" href="#"><span class="mark">RS</span>RTL Scout <small>leaderboard</small></a>
+  <nav id="nav">
+    <a href="#leaderboard">Leaderboard</a>
+    <a href="#convergence">Convergence</a>
+    <a href="#cost">Cost</a>
+    <a href="#runs">Runs</a>
+    <a href="#method">Method</a>
+  </nav>
+</div></header>
+
+<main>
+<div class="wrap hero">
+  <div class="eyebrow" id="eyebrow">LLM agents · RTL optimization</div>
+  <h1>How far can an LLM push a hardware design?</h1>
+  <p class="lede" id="lede">Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for a fixed number of steps on the same starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified cost the agent reached. Lower is better.</p>
+  <div class="tasks" id="task-wrap" hidden>
+    <div class="seg" role="group" aria-label="Task" id="task-seg"></div>
+  </div>
+  <div class="stats" id="stats" hidden></div>
+</div>
+
+<section id="empty" hidden><div class="wrap">
+  <div class="card empty">
+    <h3 id="empty-title">No results yet</h3>
+    <p id="empty-text">No run has been published for this task. Results appear here once the first campaign is recorded and published.</p>
+  </div>
+</div></section>
+
+<div id="content" hidden>
+<section id="leaderboard"><div class="wrap">
+  <div class="sec-head">
+    <div><h2>Leaderboard</h2><p id="lb-desc"></p></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="tbl"><table id="lb-table"></table></div>
+    <div class="cap" id="lb-cap"></div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <div class="chart" id="strip"></div>
+    <div class="cap">Every run as a dot, the mean as a vertical bar, the standard deviation as the thin line. The reference line is the unmodified starting design. Hover a dot for its run.</div>
+  </div>
+</div></section>
+
+<section id="convergence"><div class="wrap">
+  <div class="sec-head">
+    <div><h2>Convergence</h2><p id="conv-desc"></p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Horizontal axis">
+        <button aria-pressed="true" data-x="eval">By evaluation</button>
+        <button aria-pressed="false" data-x="time">By wall-clock</button>
+      </div>
+      <div class="seg" role="group" aria-label="Aggregation across runs">
+        <button aria-pressed="true" data-agg="median">Median</button>
+        <button aria-pressed="false" data-agg="mean">Mean</button>
+        <button aria-pressed="false" data-agg="min">Min</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="chart" id="conv"></div>
+    <div class="legend" id="conv-legend"></div>
+  </div>
+</div></section>
+
+<section id="cost"><div class="wrap">
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Wall-clock per run is in the table above.</p></div></div>
+  <div class="card" style="margin-top:14px">
+    <div class="chart" id="scatter"></div>
+    <div class="cap" id="scatter-cap">Error bars are one standard deviation on both axes.</div>
+  </div>
+</div></section>
+
+<section id="runs"><div class="wrap">
+  <div class="sec-head"><div><h2>Every run</h2><p id="runs-desc">The individual runs behind each row, with the evaluation and agent step at which the best design appeared. Failed evaluations are designs that did not pass the testbench or the flow.</p></div></div>
+  <div class="card" style="margin-top:14px" id="runs-card"></div>
+</div></section>
+
+<section id="method"><div class="wrap">
+  <div class="sec-head"><div><h2>Benchmark and method</h2></div></div>
+  <div class="card objective" id="objective" hidden>
+    <h3>Why area × delay is the score</h3>
+    <p>Every design is scored by its <b>area-delay product</b> (ADP): the cell area of the synthesized netlist in µm² times its critical-path delay in ps. The critical path bounds the clock period, and the testbench fixes how many cycles the job takes, so a design's throughput is proportional to 1&#8239;/&#8239;delay. Its <b>throughput per unit silicon is therefore proportional to 1&#8239;/&#8239;ADP</b>: halving the ADP means the same die area delivers twice the compute, whether you get there by a smaller circuit, a faster one, or both. That is what makes ADP a meaningful single number rather than an arbitrary blend of two metrics.</p>
+    <p>It also keeps the optimization honest. Neither axis can be bought with the other at face value: a design that shrinks area by 20 % but lengthens the critical path by 25 % scores worse, and one that speeds up by duplicating hardware only wins if the speed-up exceeds the extra area. Because the cycle count is pinned by the cycle-accurate testbench, the agent cannot trade latency for area either; it has to find genuinely better logic.</p>
+  </div>
+  <div class="notes">
+    <div><h3>The design</h3><p id="m-design"></p></div>
+    <div><h3>The score</h3><p id="m-score"></p></div>
+    <div><h3>The agent loop</h3><p id="m-agent"></p></div>
+    <div><h3>Cost accounting</h3><p>Dollars per run come from each run's recorded token usage (input and output tokens, plus cache writes and reads where a provider reports them) at the list prices given in the per-entry notes below. Prices and token counts are stored with every run, so the figure can be recomputed.</p></div>
+  </div>
+  <div class="fn" id="fn"></div>
+</div></section>
+</div>
+</main>
+
+<footer><div class="wrap">
+  <span>RTL Scout · <a href="https://github.com/huawei-csl/rtlscout">github.com/huawei-csl/rtlscout</a> · <a href="https://arxiv.org/abs/2606.06530">arXiv 2606.06530</a></span>
+  <span id="gen"></span>
+</div></footer>
+<div class="tip" id="tip" role="tooltip"></div>
+
+<script src="data.js"></script>
+<script>
+(function(){
+const D = window.RTLSCOUT_DATA;
+const $ = id => document.getElementById(id);
+const show = (id, on) => { $(id).hidden = !on; };
+
+/* ---------- empty states ---------- */
+if(!D || !Array.isArray(D.tasks) || !D.tasks.length){
+  $('empty-title').textContent = D ? 'No results yet' : 'No data file';
+  $('empty-text').innerHTML = D
+    ? 'No task has published results. They appear here once the first campaign is recorded and published.'
+    : 'This page shows only what <code>data.js</code> next to it contains, and that file is missing. Build the site with <code>python -m rtlscout_bench.site</code> and open <code>_site/index.html</code>.';
+  show('empty', true); $('nav').hidden = true;
+  return;
+}
+
+const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7'];
+const LANG = {verilog:'Verilog', spirehdl:'Spire HDL'};
+const SUP = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
+let T = D.tasks[0];
+let convAgg = 'median', convX = 'eval';
+const hidden = new Set();
+const tip = $('tip');
+const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const pct = v => (v>0?'+':'−') + Math.abs(v).toFixed(1) + ' %';
+const el = (tag, attrs={}, kids=[]) => { const n=document.createElementNS('http://www.w3.org/2000/svg',tag); for(const k in attrs) n.setAttribute(k,attrs[k]); kids.forEach(k=>n.appendChild(k)); return n; };
+const txt = (x,y,s,attrs={}) => { const t=el('text',Object.assign({x,y},attrs)); t.textContent=s; return t; };
+
+/* per-task helpers: costs are shown divided by 10^scale_exp */
+const K = () => Math.pow(10, T.scale_exp || 0);
+const sc = v => v / K();
+const fmtC = v => v == null ? '—' : sc(v).toFixed(3);
+const unit = () => (T.scale_exp ? '×10' + String(T.scale_exp).split('').map(c=>SUP[c]).join('') + ' ' : '') + (T.unit || '');
+const short = () => (T.metric || '').indexOf('area_delay_product') === 0 ? 'adp' : (T.metric_label || 'cost');
+const rows = () => T.rows.filter(r=>r.agg);
+const baseOf = r => (T.baselines[r.language] || {}).cost;
+const langsWithBase = () => [...new Set(rows().map(r=>r.language))].filter(l=>T.baselines[l] && T.baselines[l].cost);
+const colorOf = {};
+function assignColors(){ T.rows.forEach((r,i)=>colorOf[r.entry]=`var(${SERIES[i%SERIES.length]})`); }
+function niceTicks(lo, hi, n){
+  if(!(hi > lo)){ hi = lo + 1; }
+  const raw = (hi-lo)/Math.max(1,n), mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw/mag;
+  const step = (f<1.5?1:f<3.5?2:f<7.5?5:10)*mag;
+  const t0 = Math.floor(lo/step)*step, t1 = Math.ceil(hi/step)*step, out = [];
+  for(let v=t0; v<=t1+step*1e-6; v+=step) out.push(Math.round(v/step)*step);
+  return {lo:t0, hi:t1, step, ticks:out, dec:Math.max(0, -Math.floor(Math.log10(step)+1e-9))};
+}
+
+function showTip(ev, html){ tip.innerHTML=html; tip.style.opacity=1; moveTip(ev); }
+function moveTip(ev){ const w=tip.offsetWidth,h=tip.offsetHeight; let x=ev.clientX+14,y=ev.clientY+14; if(x+w>innerWidth-8)x=ev.clientX-w-14; if(y+h>innerHeight-8)y=ev.clientY-h-14; tip.style.left=x+'px'; tip.style.top=y+'px'; }
+function hideTip(){ tip.style.opacity=0; }
+function bindTip(node, html){ node.addEventListener('mouseenter',e=>showTip(e,html)); node.addEventListener('mousemove',moveTip); node.addEventListener('mouseleave',hideTip); }
+const runLink = run => D.data_url ? `<a href="${esc(D.data_url)}/tree/${esc(String(D.data_commit||'main').replace(/-dirty$/,''))}/${esc(run.path)}">${esc(run.path.replace(/^runs\/[^/]+\//,''))}</a>` : `<code>${esc(run.path.replace(/^runs\/[^/]+\//,''))}</code>`;
+
+/* ---------- hero ---------- */
+function renderHero(){
+  const R = rows(), all = R.flatMap(r=>r.runs);
+  const steps = [...new Set(T.rows.map(r=>r.max_steps))];
+  $('lede').innerHTML = `Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for ${steps.length===1 ? steps[0]+' steps' : 'a fixed number of steps'} on the same starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified ${esc(T.metric_label||'cost')} the agent reached. Lower is better.`;
+  if(!R.length){ show('stats', false); return; }
+  let bestRun = null, bestRow = null;
+  R.forEach(r=>r.runs.forEach(x=>{ if(x.best_cost!=null && (!bestRun || x.best_cost<bestRun.best_cost)){ bestRun=x; bestRow=r; } }));
+  const langs = langsWithBase(), b0 = langs.length ? T.baselines[langs[0]].cost : null;
+  const nOpen = R.filter(r=>r.open).length, nSeed = R.filter(r=>r.seed).reduce((n,r)=>n+r.runs.length,0);
+  const s = [
+    ['Entries scored', R.length, nOpen===R.length ? 'all open-weights models' : `${nOpen} with open weights`],
+    ['Agent runs', all.length, nSeed ? `${nSeed} measured before ${esc(D.suite)}` : `all under ${esc(D.suite)}`],
+    ['Starting design', b0==null ? '—' : fmtC(b0), `${esc(T.metric_label||'cost')}, ${esc(unit())}`],
+    ['Best run', fmtC(bestRun.best_cost), `${esc(bestRow.label)}` + (baseOf(bestRow) ? `, ${pct(100*(bestRun.best_cost/baseOf(bestRow)-1))} vs. start` : '')],
+    ['Steps per run', steps.length===1 ? steps[0] : steps.join(' / '), 'one testbench + synthesis eval per call'],
+  ];
+  $('stats').innerHTML = s.map(([k,v,i])=>`<div class="stat"><span>${k}</span><b>${v}</b><i>${i}</i></div>`).join('');
+  show('stats', true);
+}
+
+/* ---------- leaderboard table ---------- */
+function renderTable(){
+  const R = rows();
+  const maxMean = Math.max(...R.map(r=>r.agg.mean));
+  const langs = [...new Set(R.map(r=>r.language))].map(l=>LANG[l]||l).join(' and ');
+  $('lb-desc').textContent = `${T.title} · ${langs} · lower is better`;
+  let h = `<thead><tr><th></th><th>Model</th><th class="num">n</th><th class="num">${esc(short())} mean ± sd<br><span style="text-transform:none;letter-spacing:0">${esc(unit())}</span></th><th class="num">best run</th><th class="num">vs. start</th><th class="num">runtime / run</th><th class="num">$ / run</th></tr></thead><tbody>`;
+  R.forEach((r,i)=>{
+    const a=r.agg, b=baseOf(r), d=b ? 100*(a.mean/b-1) : null;
+    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}<div class="pills">${r.open?'<span class="pill open">open weights</span>':(r.vendor?`<span class="pill">${esc(r.vendor)}</span>`:'')}${r.seed?`<span class="pill seed">measured before ${esc(D.suite)}</span>`:''}</div></td>
+      <td class="num">${a.n}</td>
+      <td class="num"><span class="bar" style="width:${(a.mean/maxMean*70).toFixed(0)}px"></span>${fmtC(a.mean)} <span class="sd">± ${sc(a.sd).toFixed(3)}</span></td>
+      <td class="num">${fmtC(a.min)}</td>
+      <td class="num delta ${d>0?'worse':''}">${d==null?'—':pct(d)}</td>
+      <td class="num">${a.runtime.toFixed(0)} <span class="sd">± ${a.runtime_sd.toFixed(0)} min</span></td>
+      <td class="num">${a.usd==null?'—':a.usd.toFixed(1)+` <span class="sd">± ${a.usd_sd.toFixed(1)}</span>`}</td></tr>`;
+  });
+  $('lb-table').innerHTML = h + '</tbody>';
+  const starts = langsWithBase().map(l=>`${LANG[l]||l} ${fmtC(T.baselines[l].cost)}`).join(', ');
+  const noPass = R.reduce((n,r)=>n+(r.agg.no_pass||0),0);
+  $('lb-cap').textContent = (starts ? `Starting point: ${starts} (${unit()}). ` : '') + `Mean ± sample standard deviation of the best cost per run, over n independent runs. "vs. start" is the mean relative to the unmodified design.` + (noPass ? ` ${noPass} run(s) without any passing design are not part of the means.` : '') + (R.some(r=>r.seed) ? ` Rows marked "measured before ${D.suite}" are seed data from before the suite was fixed; see the notes at the bottom.` : '');
+}
+
+/* ---------- strip plot ---------- */
+function renderStrip(){
+  const R = rows(), langs = langsWithBase();
+  const W=960, ml=190, mr=40, rowH=34, mt=28, mb=46, H=mt+R.length*rowH+mb;
+  const all = R.flatMap(r=>r.runs.filter(x=>x.best_cost!=null).map(x=>sc(x.best_cost))).concat(langs.map(l=>sc(T.baselines[l].cost)));
+  const ax = niceTicks(Math.min(...all), Math.max(...all), 7), x0=ax.lo, x1=ax.hi;
+  const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr);
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Per-run best cost by entry'});
+  ax.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'grid'})); svg.appendChild(txt(X(v),H-mb+16,v.toFixed(ax.dec),{'text-anchor':'middle'})); });
+  svg.appendChild(txt(ml,H-6,`${short()}, ${unit()} →`));
+  langs.forEach(l=>{ const b=sc(T.baselines[l].cost); svg.appendChild(el('line',{x1:X(b),x2:X(b),y1:mt-6,y2:H-mb,class:'ref'})); svg.appendChild(txt(X(b),mt-12,'start '+(langs.length>1?(LANG[l]||l)+' ':'')+b.toFixed(2),{'text-anchor':'middle'})); });
+  R.forEach((r,i)=>{
+    const y = mt + i*rowH + rowH/2, a=r.agg;
+    svg.appendChild(txt(ml-12,y+4,r.label,{class:'lbl','text-anchor':'end'}));
+    svg.appendChild(el('line',{x1:X(sc(a.mean-a.sd)),x2:X(sc(a.mean+a.sd)),y1:y,y2:y,class:'sdbar'}));
+    r.runs.filter(x=>x.best_cost!=null).forEach(run=>{
+      const c = el('circle',{cx:X(sc(run.best_cost)),cy:y,r:6,class:'dot',style:`fill:${colorOf[r.entry]}`});
+      const hit = el('circle',{cx:X(sc(run.best_cost)),cy:y,r:12,class:'hit'});
+      bindTip(hit,`<b>${esc(r.label)}</b> · ${esc(run.id)}<br>${esc(short())} <b>${fmtC(run.best_cost)}</b> at eval ${run.best_eval}${run.best_step?` / step ${run.best_step}`:''}<br><span class="mono">${run.area?run.area.toFixed(0)+' µm² × '+run.delay.toFixed(1)+' ps · ':''}${run.n_evals} evals, ${run.n_failed} failed · ${run.runtime_min.toFixed(0)} min${run.usd==null?'':' · $'+run.usd.toFixed(1)}</span>`);
+      svg.appendChild(c); svg.appendChild(hit);
+    });
+    svg.appendChild(el('line',{x1:X(sc(a.mean)),x2:X(sc(a.mean)),y1:y-10,y2:y+10,class:'mean'}));
+  });
+  const host=$('strip'); host.innerHTML=''; host.appendChild(svg);
+}
+
+/* ---------- convergence ---------- */
+function aggVals(vals){
+  if(!vals.length) return null;
+  if(convAgg==='mean') return vals.reduce((a,b)=>a+b,0)/vals.length;
+  if(convAgg==='min') return Math.min(...vals);
+  vals.sort((a,b)=>a-b); const k=vals.length; return k%2?vals[(k-1)/2]:(vals[k/2-1]+vals[k/2])/2;
+}
+function bestByEval(run, n){            // best passing cost after each evaluation 1..n (carried forward)
+  const out=[]; let best=null; const byEval = new Map(run.traj.map(t=>[t.e,t]));
+  for(let e=1;e<=n;e++){ const t=byEval.get(e); if(t&&t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); out.push(best); }
+  return out;
+}
+function bestByTime(run, grid){         // best passing cost at each time of the grid (minutes since run start)
+  const pts = run.traj.filter(t=>t.t!=null).slice().sort((a,b)=>a.t-b.t);
+  const out=[]; let best=null, i=0;
+  grid.forEach(g=>{ while(i<pts.length && pts[i].t<=g){ const t=pts[i++]; if(t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); } out.push(best); });
+  return out;
+}
+function renderConv(){
+  const R = rows(), langs = langsWithBase();
+  const timed = R.some(r=>r.runs.some(x=>x.traj.some(t=>t.t!=null)));
+  document.querySelectorAll('.seg button[data-x]').forEach(b=>{ if(b.dataset.x==='time') b.hidden = !timed; });
+  if(convX==='time' && !timed) convX='eval';
+  const byTime = convX==='time';
+  let xs;                                 // the horizontal positions: evaluation numbers, or minutes
+  if(byTime){
+    const tmax = Math.max(...R.flatMap(r=>r.runs.flatMap(x=>x.traj.filter(t=>t.t!=null).map(t=>t.t))));
+    xs = Array.from({length:161},(_,i)=>tmax*i/160);
+  } else {
+    const N = Math.max(...R.flatMap(r=>r.runs.map(x=>x.n_evals)), 2);
+    xs = Array.from({length:N},(_,i)=>i+1);
+  }
+  const series = R.map(r=>{
+    const mats = r.runs.map(run=>byTime ? bestByTime(run,xs) : bestByEval(run,xs.length));
+    return {r, y: xs.map((_,j)=>{ const v = aggVals(mats.map(m=>m[j]).filter(v=>v!=null).map(sc)); return v; })};
+  });
+  const ys = series.flatMap(s=>s.y.filter(v=>v!=null)).concat(langs.map(l=>sc(T.baselines[l].cost)));
+  const W=960, ml=56, mr=170, mt=24, mb=36, H=360;
+  const ay = niceTicks(Math.min(...ys), Math.max(...ys), 6), y0=ay.lo, y1=ay.hi;
+  const xa = xs[0], xb = xs[xs.length-1];
+  const X = v => ml + (xb>xa ? (v-xa)/(xb-xa) : 0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
+  const aggName = convAgg==='min'?'best single run (min)':convAgg;
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`Best cost so far ${byTime?'over wall-clock time':'per evaluation'}, ${convAgg} per entry`});
+  $('conv-desc').textContent = `Best verified cost reached so far, ${byTime?'against minutes since the run started':'per evaluation'}, ${aggName} across each entry's runs. A run's last value carries forward once it stops evaluating. Click a legend entry to hide it.`;
+  ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
+  if(byTime){ const at = niceTicks(0,xb,8); at.ticks.filter(v=>v<=xb).forEach(v=>svg.appendChild(txt(X(v),H-mb+16,v.toFixed(at.dec),{'text-anchor':'middle'}))); }
+  else { const st = xb>60?10:5; for(let e=st;e<=xb;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'})); }
+  svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
+  svg.appendChild(txt(ml,H-4,byTime?'minutes since run start →':'evaluation number →'));
+  svg.appendChild(txt(ml-8,mt-8,`${short()} ${unit().split(' ')[0]}`,{'text-anchor':'end'}));
+  langs.forEach(l=>{ const b=sc(T.baselines[l].cost); svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(b),y2:Y(b),class:'ref'})); });
+  const ends = series.filter(s=>!hidden.has(s.r.entry)).map(s=>{ let last=null; for(const v of s.y) if(v!=null) last=v; return {s,y:last==null?0:Y(last),v:last}; }).filter(e=>e.v!=null)
+    .concat(langs.map(l=>({start:'start'+(langs.length>1?' '+(LANG[l]||l):''), y:Y(sc(T.baselines[l].cost)), v:sc(T.baselines[l].cost)}))).sort((a,b)=>a.y-b.y);
+  for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<13) ends[i].y=ends[i-1].y+13;
+  ends.filter(e=>e.start).forEach(e=>svg.appendChild(txt(W-mr+8,e.y+4,`${e.start} ${e.v.toFixed(2)}`,{})));
+  series.forEach(s=>{
+    if(hidden.has(s.r.entry)) return;
+    let d='', pen=false;
+    s.y.forEach((v,i)=>{ if(v==null){pen=false;return;} d += (pen?'L':'M')+X(xs[i]).toFixed(1)+' '+Y(v).toFixed(1); pen=true; });
+    svg.appendChild(el('path',{d,fill:'none',stroke:colorOf[s.r.entry],'stroke-width':2,'stroke-linejoin':'round'}));
+    const e = ends.find(x=>x.s===s);
+    if(e) svg.appendChild(txt(W-mr+8,e.y+4,`${s.r.label} ${e.v.toFixed(2)}`,{class:'lbl'}));
+  });
+  const hit = el('rect',{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb,class:'hit'});
+  const cursor = el('line',{x1:0,x2:0,y1:mt,y2:H-mb,class:'ref',visibility:'hidden'});
+  svg.appendChild(cursor); svg.appendChild(hit);
+  hit.addEventListener('mousemove',ev=>{
+    const pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const j = Math.max(0,Math.min(xs.length-1,Math.round((p.x-ml)/(W-ml-mr)*(xs.length-1))));
+    cursor.setAttribute('x1',X(xs[j])); cursor.setAttribute('x2',X(xs[j])); cursor.setAttribute('visibility','visible');
+    const lines = series.filter(s=>!hidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>a.y[j]-b.y[j]).map(s=>`<span class="sw" style="background:${colorOf[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(3)}</span>`).join('<br>');
+    showTip(ev,`<b>${byTime?'after '+xs[j].toFixed(0)+' min':'after evaluation '+xs[j]}</b> · ${esc(aggName)} of runs<br>${lines}`);
+  });
+  hit.addEventListener('mouseleave',()=>{cursor.setAttribute('visibility','hidden');hideTip();});
+  const host=$('conv'); host.innerHTML=''; host.appendChild(svg);
+  $('conv-legend').innerHTML = R.map(r=>`<button data-id="${esc(r.entry)}" aria-pressed="${hidden.has(r.entry)?'false':'true'}"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}</button>`).join('');
+  document.querySelectorAll('#conv-legend button').forEach(bt=>bt.addEventListener('click',()=>{ const id=bt.dataset.id; hidden.has(id)?hidden.delete(id):hidden.add(id); renderConv(); }));
+}
+
+/* ---------- scatter ---------- */
+function renderScatter(){
+  const R = rows().filter(r=>r.agg.usd!=null), langs = langsWithBase();
+  show('cost', R.length>0);
+  if(!R.length) return;
+  const W=960, ml=56, mr=30, mt=24, mb=40, H=340;
+  const ax = niceTicks(0, Math.max(...R.map(r=>r.agg.usd+r.agg.usd_sd))*1.08, 8);
+  const ay = niceTicks(Math.min(...R.map(r=>sc(r.agg.mean-r.agg.sd)).concat(langs.map(l=>sc(T.baselines[l].cost)))), Math.max(...R.map(r=>sc(r.agg.mean+r.agg.sd)).concat(langs.map(l=>sc(T.baselines[l].cost)))), 6);
+  const x0=0, x1=ax.hi, y0=ay.lo, y1=ay.hi;
+  const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Mean cost reached versus dollars per run'});
+  ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
+  ax.ticks.forEach(v=>svg.appendChild(txt(X(v),H-mb+16,'$'+v.toFixed(ax.dec),{'text-anchor':'middle'})));
+  svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
+  svg.appendChild(txt(ml,H-6,'API cost per run, USD →')); svg.appendChild(txt(ml-8,mt-8,`${short()} ${unit().split(' ')[0]}`,{'text-anchor':'end'}));
+  langs.forEach(l=>{ const b=sc(T.baselines[l].cost); svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(b),y2:Y(b),class:'ref'})); svg.appendChild(txt(W-mr,Y(b)-5,'start'+(langs.length>1?' '+(LANG[l]||l):''),{'text-anchor':'end'})); });
+  R.forEach(r=>{
+    const a=r.agg, x=X(a.usd), y=Y(sc(a.mean));
+    svg.appendChild(el('line',{x1:X(Math.max(0,a.usd-a.usd_sd)),x2:X(a.usd+a.usd_sd),y1:y,y2:y,class:'sdbar'}));
+    svg.appendChild(el('line',{x1:x,x2:x,y1:Y(sc(a.mean+a.sd)),y2:Y(Math.max(y0,sc(a.mean-a.sd))),class:'sdbar'}));
+    svg.appendChild(el('circle',{cx:x,cy:y,r:7,class:'dot',style:`fill:${colorOf[r.entry]}`}));
+    svg.appendChild(txt(x+11,y+4,r.label,{class:'lbl'}));
+    const hit = el('circle',{cx:x,cy:y,r:14,class:'hit'});
+    bindTip(hit,`<b>${esc(r.label)}</b><br>${esc(short())} ${fmtC(a.mean)} ± ${sc(a.sd).toFixed(3)} · $${a.usd.toFixed(1)} ± ${a.usd_sd.toFixed(1)} per run<br><span class="mono">${a.runtime.toFixed(0)} min per run · n=${a.n}</span>`);
+    svg.appendChild(hit);
+  });
+  const host=$('scatter'); host.innerHTML=''; host.appendChild(svg);
+}
+
+/* ---------- per-run tables ---------- */
+function renderRuns(){
+  const R = rows();
+  $('runs-desc').innerHTML = `The individual runs behind each row, with the evaluation and agent step at which the best design appeared. Failed evaluations are designs that did not pass the testbench or the flow.` + (D.data_url ? ` Each run links to its folder in the <a href="${esc(D.data_url)}">data repository</a>: the record, the best design, the agent's summary and the full transcript.` : ` Each run has a folder of the same name in the data repository: the record, the best design, the agent's summary and the full transcript.`);
+  $('runs-card').innerHTML = R.map((r,i)=>{
+    const rowsHtml = r.runs.slice().sort((a,b)=>(a.best_cost==null)-(b.best_cost==null) || a.best_cost-b.best_cost).map(run=>`<tr><td>${runLink(run)}</td><td class="num">${fmtC(run.best_cost)}</td><td class="num">${run.area?run.area.toFixed(0):'—'}</td><td class="num">${run.delay?run.delay.toFixed(1):'—'}</td><td class="num">${run.best_eval==null?'—':run.best_eval}${run.best_step?' / '+run.best_step:''}</td><td class="num">${run.n_evals} / ${run.n_failed}</td><td class="num">${run.steps}</td><td class="num">${run.runtime_min.toFixed(0)}</td><td class="num">${run.usd==null?'—':run.usd.toFixed(2)}</td></tr>`).join('');
+    return `<details ${i===0?'open':''}><summary><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)} <span class="sd">· ${r.runs.length} ${esc(LANG[r.language]||r.language)} runs · ${esc(r.suite)} · rtlscout ${esc([...new Set(r.runs.map(x=>x.rtlscout))].join(', '))}</span></summary>
+      <div class="tbl"><table><thead><tr><th>run</th><th class="num">${esc(short())} ${esc(unit().split(' ')[0])}</th><th class="num">area µm²</th><th class="num">delay ps</th><th class="num">best at eval / step</th><th class="num">evals / failed</th><th class="num">steps</th><th class="num">min</th><th class="num">$</th></tr></thead><tbody>${rowsHtml}</tbody></table></div></details>`;
+  }).join('');
+}
+
+/* ---------- method and notes ---------- */
+function renderMethod(){
+  show('objective', (T.metric||'').indexOf('area_delay_product')===0);
+  const starts = Object.keys(T.baselines).filter(l=>T.baselines[l].cost).map(l=>`${LANG[l]||l} ${fmtC(T.baselines[l].cost)}` + (T.baselines[l].area && T.baselines[l].delay ? ` (${T.baselines[l].area.toFixed(0)} µm² × ${T.baselines[l].delay.toFixed(1)} ps)` : '')).join(', ');
+  $('m-design').innerHTML = esc(T.description) + (starts ? ` Starting point: ${starts}, in ${esc(unit())}.` : '');
+  $('m-score').innerHTML = `${esc(T.metric_label||'Cost')} of the synthesized netlist (<code>${esc(T.metric)}</code>). ${esc(T.flow)} Reported per entry as mean ± sample standard deviation over n independent runs; <em>best run</em> is the single best one.`;
+  const steps = [...new Set(T.rows.map(r=>r.max_steps))];
+  $('m-agent').innerHTML = `The RTL Scout react agent gets the starting design, the testbench contract, and tools to read, edit and evaluate files. It has ${steps.length===1?steps[0]:'a fixed number of'} steps; every <code>run_evaluation</code> call checks the design against the testbench and runs the scoring flow. The best passing design is snapshotted as the run's result. Repeats are independent launches; there is no sampling seed.`;
+  let h = '';
+  const noted = T.rows.filter(r=>r.runs.length);
+  if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
+  if(T.footnotes && T.footnotes.length) h += '<p style="margin-top:14px"><strong>Notes</strong></p><ul>' + T.footnotes.map(f=>`<li>${esc(f)}</li>`).join('') + '</ul>';
+  if(T.excluded && T.excluded.length) h += '<p style="margin-top:14px"><strong>Runs not counted</strong></p><ul>' + T.excluded.map(x=>`<li><code>${esc(x.entry)}/${esc(x.run)}</code>${x.cost!=null?' ('+fmtC(x.cost)+')':''}: ${esc(x.reason)}</li>`).join('') + '</ul>';
+  $('fn').innerHTML = h;
+}
+
+function renderAll(){
+  assignColors(); hidden.clear();
+  renderHero();
+  const has = rows().length > 0;
+  show('content', has); show('empty', !has); $('nav').hidden = !has;
+  if(!has){ $('empty-title').textContent = 'No results yet'; $('empty-text').textContent = `No run has been published for ${T.title} yet. Results appear here once the first campaign is recorded and published.`; return; }
+  renderTable(); renderStrip(); renderConv(); renderScatter(); renderRuns(); renderMethod();
+}
+
+/* ---------- task selector (hidden while there is a single task) ---------- */
+if(D.tasks.length > 1){
+  $('task-seg').innerHTML = D.tasks.map((t,i)=>`<button data-task="${i}" aria-pressed="${i===0}">${esc(t.title)}</button>`).join('');
+  show('task-wrap', true);
+  document.querySelectorAll('#task-seg button').forEach(bt=>bt.addEventListener('click',()=>{
+    T = D.tasks[+bt.dataset.task]; document.querySelectorAll('#task-seg button').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderAll();
+  }));
+}
+document.querySelectorAll('.seg button[data-agg]').forEach(bt=>bt.addEventListener('click',()=>{
+  convAgg = bt.dataset.agg; document.querySelectorAll('.seg button[data-agg]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();
+}));
+document.querySelectorAll('.seg button[data-x]').forEach(bt=>bt.addEventListener('click',()=>{
+  convX = bt.dataset.x; document.querySelectorAll('.seg button[data-x]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();
+}));
+const sha = s => s ? String(s).slice(0,7) + (/-dirty$/.test(s) ? ' (with uncommitted changes)' : '') : 'unknown';
+if(D.open_weights_only) $('eyebrow').textContent += ' · open-weights models';
+$('gen').textContent = `Built ${String(D.generated||'').replace('T',' ')} from rtlscout-bench ${sha(D.bench_commit)} and rtlscout-bench-data ${sha(D.data_commit)}`;
+renderAll();
+})();
+</script>
+</body>
+</html>
