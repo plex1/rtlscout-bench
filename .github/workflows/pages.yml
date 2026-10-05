@@ -1,0 +1,55 @@
+name: pages
+
+# Builds the leaderboard page from this commit and the data commit its `data` submodule points at, and deploys
+# it to GitHub Pages. The built site is committed nowhere. A push to the data repository alone deploys nothing:
+# the page changes when the submodule pointer here is bumped (python -m rtlscout_bench.publish).
+#
+# One-time setup: Settings -> Pages -> Source: GitHub Actions.
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (with the data submodule)
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install the tooling (file tools only; rtlscout itself is not needed to build the site)
+        run: |
+          pip install pyyaml
+          pip install --no-deps -e .
+
+      - name: Build the site (fails on a broken record, a policy violation or a key pattern)
+        run: python -m rtlscout_bench.site
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

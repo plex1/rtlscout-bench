@@ -1,0 +1,46 @@
+name: tests
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  # Unit tests of the file tools, plus the commands of docs/manual.md marked `# doctest` (those that need
+  # nothing but this package and the data submodule). No rtlscout, no EDA tools, no API key.
+  pytest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+      - name: Install
+        run: |
+          pip install pyyaml pytest
+          pip install --no-deps -e .
+      - name: pytest
+        run: pytest -q
+
+  # The manual's `# doctest: rtlscout` commands: the whole campaign -> record -> site pipeline on rtlscout's
+  # scripted `fake:` model, inside the published EDA image. No API key, no cost.
+  manual-with-rtlscout:
+    runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/huawei-csl/rtlscout:slim
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - name: Install this package (pulls rtlscout by git URL at the pinned tag)
+        run: |
+          . /home/vscode/pyenv_eda/bin/activate
+          uv pip install -e . pytest
+      - name: Manual commands against the fake model
+        run: |
+          . /home/vscode/pyenv_eda/bin/activate
+          pytest -q tests/test_manual.py
