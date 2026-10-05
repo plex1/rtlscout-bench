@@ -51,7 +51,9 @@ def checkout(tmp_path_factory):
     shutil.copytree(REPO, root, ignore=ignore)
     bindir = root.parent / "bin"
     bindir.mkdir()
-    (bindir / "python").symlink_to(sys.executable)
+    wrapper = bindir / "python"         # a wrapper, not a symlink: a symlinked venv interpreter loses its venv
+    wrapper.write_text(f'#!/bin/sh\nexec "{sys.executable}" "$@"\n')
+    wrapper.chmod(0o755)
     env = dict(os.environ, PATH=f"{bindir}{os.pathsep}{os.environ['PATH']}")
     env.pop("RTLSCOUT_REASONING_EFFORT", None)
     return root, env

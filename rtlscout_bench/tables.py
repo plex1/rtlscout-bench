@@ -187,7 +187,8 @@ def _table_rows(board: dict) -> list[tuple[str, ...]]:
 def render_text(board: dict) -> str:
     """Fixed-width table for terminals (what ``site`` and ``publish`` print)."""
     k = 10 ** board["scale_exp"]
-    lines = [f"{board['task']}: {board['title']}  [{board['metric_label']}, {_unit(board)}; lower is better]"]
+    label = ", ".join(part for part in (board["metric_label"], _unit(board)) if part)
+    lines = [f"{board['task']}: {board['title']}  [{label}; lower is better]"]
     for lang, b in board["baselines"].items():
         if b.get("cost"):
             lines.append(f"starting point ({LANGUAGE_LABEL.get(lang, lang)}): {b['cost']:,.2f} = {b['cost'] / k:.3f}")

@@ -93,7 +93,8 @@ def test_plan_overrides_for_one_off_launches(bench):
         _plan(entries=["nope"])
 
 
-def test_dry_run_prints_the_commands_and_launches_nothing(bench, capsys):
+def test_dry_run_prints_the_commands_and_launches_nothing(bench, capsys, monkeypatch):
+    monkeypatch.setattr(campaign, "installed_version", lambda dist: None)      # also where rtlscout is installed
     assert campaign.main(["--dry-run"]) == 0
     out = capsys.readouterr().out
     assert "rtlscout not installed" in out
@@ -104,7 +105,8 @@ def test_dry_run_prints_the_commands_and_launches_nothing(bench, capsys):
     assert not RUNS.exists()
 
 
-def test_real_launch_needs_rtlscout_installed(bench, capsys):
+def test_real_launch_needs_rtlscout_installed(bench, capsys, monkeypatch):
+    monkeypatch.setattr(campaign, "installed_version", lambda dist: None)
     assert campaign.main([]) == 1
     assert "rtlscout is not installed" in capsys.readouterr().err and not RUNS.exists()
 
