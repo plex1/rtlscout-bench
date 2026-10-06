@@ -1074,22 +1074,21 @@ If the tools report `data/models.json not found`, the submodule is not checked o
 
 **Verilator and sequential user-defined primitives.** Verilator 5.040 mis-simulates sequential user-defined
 primitives, which some vendor cell models use for flip-flops; a gate-level simulation of such a netlist can be
-silently wrong. rtlscout's image recipe carries a fix (a Verilator built with it shows `(mod)` in its version
-string). The image published as `ghcr.io/huawei-csl/rtlscout:slim` when this manual was written predates the fix:
+silently wrong. The rtlscout image carries a fix for it since `slim-20261006` (the tag `slim` points there; the
+previous image is kept as `slim-20260604`). A fixed Verilator shows `(mod)` in its version string:
 
 ```bash
 verilator --version
 ```
 
 ```text
-Verilator 5.040 2025-08-30 rev v5.040
+Verilator 5.040 2025-08-30 rev v5.040 (mod)
 ```
 
-The leaderboard does not depend on it: on ASAP7, rtlscout re-simulates netlists with functional cell models that
-it generates from the liberty file, and these contain no such primitives
-(`NETLIST_FUNCTIONAL_SIM_CELL_MODELS` in `rtlscout/tech_eval/ppa_extract/core/template.py`, on by default). The fix
-matters when that switch is turned off or a task uses a technology without functional models; measure such a task
-only with a Verilator that reports `(mod)`.
+Without `(mod)` you are on an older image. The ASAP7 flow does not depend on the fix: rtlscout re-simulates
+netlists with functional cell models that it generates from the liberty file, and these contain no such
+primitives (`NETLIST_FUNCTIONAL_SIM_CELL_MODELS` in `rtlscout/tech_eval/ppa_extract/core/template.py`, on by
+default). It matters when that switch is turned off or a task uses a technology without functional models.
 
 **`rtlscout is not installed in this environment`.** `campaign` was started outside the container, or before
 `uv pip install -e .`. Dry runs, tables, the site build and the data checks work without rtlscout; launching
