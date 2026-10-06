@@ -4,7 +4,8 @@ version = "0.1.0"
 description = "Leaderboard tooling for RTL Scout: campaign runner, run recorder, tables, site generator"
 readme = "README.md"
 requires-python = ">=3.12"
-license = { file = "LICENSE" }
+license = "MIT"
+license-files = ["LICENSE"]
 dependencies = [
     # The engine, pinned to a commit (a tag once one exists). This pin is how the leaderboard moves to a new rtlscout
     # version (docs/manual.md,
@@ -24,5 +25,5 @@ include = ["rtlscout_bench*"]
 testpaths = ["tests"]
 
 [build-system]
-requires = ["setuptools>=68.0"]
+requires = ["setuptools>=77.0.3"]
 build-backend = "setuptools.build_meta"

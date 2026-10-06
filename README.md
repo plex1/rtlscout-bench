@@ -80,5 +80,5 @@ tools nor a model. They also execute the commands of the manual that are marked 
 
 ## Licence
 
-BSD-3-Clause-Clear, see `LICENSE`. The benchmark starting points derive from LogikBench (MIT); see
-`benchmarks/NOTICE` and `benchmarks/LICENSE`.
+MIT, see `LICENSE`. The benchmark starting points derive from LogikBench (MIT); see `benchmarks/NOTICE` and
+`benchmarks/LICENSE`. The run data lives in the data repository under CC-BY-4.0.

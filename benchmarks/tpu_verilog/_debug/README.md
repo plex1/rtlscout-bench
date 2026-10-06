@@ -6,6 +6,10 @@ commit `e8c7c43` (MIT), `benchmarks/large/tpu/rtl/` (verbatim copies in
 concatenated, unmodified. Defaults kept: N=8, DW=8, ACCW=32.
 
 ## Regenerate vectors.dat
+
+> 2026-08-26: `vectors.dat` was extended to 6,782 cycles (3,400 result rows); its first 830 cycles are the
+> original set described below, unchanged.
+
 1. `python3 gen_stimuli.py` → `stimuli.txt` (830 cycles: directed
    zero/identity/max/min tiles, random tiles, back-to-back A streams,
    a_valid gaps, mid-drain weight reload, 12-tile random soak).

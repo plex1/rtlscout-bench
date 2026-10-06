@@ -34,8 +34,8 @@ Ports:
 A working starting point is provided: `context/starting_point.py` is a SpireHDL
 mirror of the original logikbench RTL — the PE mesh, per-row input skew,
 per-column output de-skew and valid pipeline generated with Python loops,
-register-for-register equivalent. It passes all 830 golden
-cycles (328 result rows: directed zero/identity/extreme tiles, random tiles,
+register-for-register equivalent. It passes all 6,782 golden
+cycles (3,400 result rows: directed zero/identity/extreme tiles, random tiles,
 back-to-back streams, a_valid gaps, mid-drain weight reloads, random soak).
 Study it, then optimize while preserving the cycle-accurate behavior. The
 sibling benchmark `tpu_verilog` shares the identical testbench and vectors
