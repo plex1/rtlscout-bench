@@ -104,11 +104,19 @@ model's behaviour, not on the vector file. Measuring a starting point costs no A
 
 **Clone with the data submodule, start the container, install**
 
-<!-- TO-VERIFY -->
 ```bash
 docker pull ghcr.io/huawei-csl/rtlscout:slim
 git clone --recurse-submodules https://github.com/plex1/rtlscout-bench.git && cd rtlscout-bench
 docker run --rm -it -v "$PWD":/work -w /work --env-file .env ghcr.io/huawei-csl/rtlscout:slim bash
+```
+
+The clone registers and checks out the data submodule by itself:
+
+```text
+Cloning into 'rtlscout-bench'...
+Submodule 'data' (https://github.com/plex1/rtlscout-bench-data.git) registered for path 'data'
+Cloning into 'rtlscout-bench/data'...
+Submodule path 'data': checked out 'ce5ae6ee1ea8395e79fe94a86a16587dff93c24a'
 ```
 
 Inside the container:
@@ -573,11 +581,26 @@ repository first, then `rtlscout-bench`, when you are ready. `-m "<message>"` se
 **Undoing a publish.** The page follows the `data` pointer of `rtlscout-bench` `main`. Revert the pointer bump
 and push; the page redeploys from the previous data commit. The data commit itself stays in the data repository.
 
-<!-- TO-VERIFY -->
 ```bash
 git log --oneline -3                   # find the commit "publish: data @ <commit>"
 git revert <that commit> && git push
 git submodule update                   # move the local data/ checkout back to the pointer
+```
+
+Run through once in a scratch clone (its origin was a local mirror, so nothing was reverted on GitHub):
+
+```text
+$ git log --oneline -3
+4b1b4d8 publish: data @ b67fd94
+6750b55 tpu descriptions: refer to the trace without a cycle count
+c4c400f Licence MIT; tpu descriptions state the 6,782-cycle testbench
+$ git revert <that commit> && git push
+[main fb405c6] Revert "publish: data @ b67fd94"
+   4b1b4d8..fb405c6  main -> main
+$ git submodule update
+Submodule path 'data': checked out 'ce5ae6ee1ea8395e79fe94a86a16587dff93c24a'
+$ git -C data log --oneline -1
+ce5ae6e Licence: CC BY 4.0
 ```
 
 ---
@@ -1064,10 +1087,14 @@ is usable. Run one campaign at a time, and give hand-launched runs their own `--
 a fork of the data repository under the same owner. Point the submodule at the data repository you want and
 fetch it:
 
-<!-- TO-VERIFY -->
 ```bash
 git config submodule.data.url https://github.com/plex1/rtlscout-bench-data.git
 git submodule update --init
+```
+
+```text
+Cloning into 'data'...
+Submodule path 'data': checked out 'ce5ae6ee1ea8395e79fe94a86a16587dff93c24a'
 ```
 
 If the tools report `data/models.json not found`, the submodule is not checked out: `git submodule update --init`.
