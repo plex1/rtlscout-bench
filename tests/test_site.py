@@ -34,7 +34,7 @@ def test_build_writes_the_template_copy_and_one_data_file(bench, tmp_path, capsy
     out = capsys.readouterr().out
     assert "1  Model A  2  0.750 ± 0.071     0.700     -25.0%" in out
     assert "wrote _site/index.html and _site/data.js" in out and "1 task(s), 1 row(s), 2 run(s)" in out
-    assert sorted(p.name for p in Path("_site").iterdir()) == ["data.js", "index.html"]
+    assert sorted(p.name for p in Path("_site").iterdir()) == ["assets", "data.js", "index.html"]
     assert Path("_site/index.html").read_text() == TEMPLATE
 
     d = _site_data()

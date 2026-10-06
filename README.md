@@ -82,3 +82,4 @@ tools nor a model. They also execute the commands of the manual that are marked 
 
 MIT, see `LICENSE`. The benchmark starting points derive from LogikBench (MIT); see `benchmarks/NOTICE` and
 `benchmarks/LICENSE`. The run data lives in the data repository under CC-BY-4.0.
+The RTLScout artwork in `site/assets/` comes from the [rtlscout](https://github.com/huawei-csl/rtlscout) repository.

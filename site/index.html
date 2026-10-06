@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>RTL Scout Leaderboard</title>
-<meta name="description" content="How well do LLM agents optimize RTL? The RTL Scout leaderboard: best verified area-delay product reached per model on the same starting design, with every run, its cost and its transcript.">
+<title>RTLScout Bench</title>
+<meta name="description" content="RTLScout Bench. How well do LLM agents optimize RTL? A leaderboard: best verified area-delay product reached per model on the same starting design, with every run, its cost and its transcript.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -60,7 +60,18 @@ p{margin:0}
 .top{position:sticky;top:env(safe-area-inset-top,0px);z-index:5;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--line-soft)}
 .top .wrap{display:flex;align-items:center;gap:22px;min-height:56px;flex-wrap:wrap}
 .brand{display:flex;align-items:center;gap:10px;font-weight:600;letter-spacing:-.01em;color:var(--ink);border:0}
-.brand .mark{width:26px;height:26px;display:inline-grid;place-items:center;border-radius:6px;background:var(--accent);color:#fff;font-family:"IBM Plex Mono",monospace;font-size:12px;font-weight:500}
+.brand .mark{width:30px;height:30px;display:block}
+.brand .mark.dark,.hero-art img.dark{display:none}
+.hero{display:grid;grid-template-columns:minmax(0,1fr) min(400px,38%);gap:8px 40px;align-items:center}
+.hero .stats{grid-column:1/-1}
+.hero-art img{display:block;width:100%;height:auto}
+@media (max-width:900px){.hero{grid-template-columns:1fr}.hero-art{display:none}}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]) .brand .mark.light,:root:not([data-theme="light"]) .hero-art img.light{display:none}
+  :root:not([data-theme="light"]) .brand .mark.dark,:root:not([data-theme="light"]) .hero-art img.dark{display:block}
+}
+:root[data-theme="dark"] .brand .mark.light,:root[data-theme="dark"] .hero-art img.light{display:none}
+:root[data-theme="dark"] .brand .mark.dark,:root[data-theme="dark"] .hero-art img.dark{display:block}
 .brand small{font-weight:400;color:var(--ink-3)}
 nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
 nav a{padding:6px 10px;border-radius:6px;color:var(--ink-2);font-size:.92rem;border:0}
@@ -156,7 +167,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </head>
 <body>
 <header class="top"><div class="wrap">
-  <a class="brand" href="#"><span class="mark">RS</span>RTL Scout <small>leaderboard</small></a>
+  <a class="brand" href="#"><img class="mark light" src="assets/rtlscout-mark-light.png" alt=""><img class="mark dark" src="assets/rtlscout-mark-dark.png" alt="">RTLScout <small>Bench</small></a>
   <nav id="nav">
     <a href="#leaderboard">Leaderboard</a>
     <a href="#convergence">Convergence</a>
@@ -168,12 +179,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 
 <main>
 <div class="wrap hero">
+  <div class="hero-text">
   <div class="eyebrow" id="eyebrow">LLM agents · RTL optimization</div>
   <h1>How far can an LLM push a hardware design?</h1>
   <p class="lede" id="lede">Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for a fixed number of steps on the same starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified cost the agent reached. Lower is better.</p>
   <div class="tasks" id="task-wrap" hidden>
     <div class="seg" role="group" aria-label="Task" id="task-seg"></div>
   </div>
+  </div>
+  <div class="hero-art" aria-hidden="true"><img class="light" src="assets/rtlscout-light.png" alt=""><img class="dark" src="assets/rtlscout-dark.png" alt=""></div>
   <div class="stats" id="stats" hidden></div>
 </div>
 

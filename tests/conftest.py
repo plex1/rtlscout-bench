@@ -89,6 +89,7 @@ def bench(tmp_path, monkeypatch):
     write_benchmark(root / "benchmarks", "demo_spire", "starting_point.py")
     (root / "site").mkdir()
     shutil.copyfile(REPO / "site" / "index.html", root / "site" / "index.html")
+    shutil.copytree(REPO / "site" / "assets", root / "site" / "assets")
     data = root / "data"
     (data / "leaderboards").mkdir(parents=True)
     (data / "campaigns").mkdir()

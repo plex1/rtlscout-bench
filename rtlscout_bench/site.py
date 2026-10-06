@@ -96,6 +96,9 @@ def write_site(site: dict, template: Path, out: Path) -> tuple[Path, Path]:
     out.mkdir(parents=True, exist_ok=True)
     page, data_js = out / "index.html", out / "data.js"
     shutil.copyfile(template, page)
+    assets = template.parent / "assets"                 # logo files the page references as assets/<name>
+    if assets.is_dir():
+        shutil.copytree(assets, out / "assets", dirs_exist_ok=True)
     data_js.write_text("window.RTLSCOUT_DATA = " + json.dumps(site, separators=(",", ":"), ensure_ascii=False) + ";\n")
     return page, data_js
 
