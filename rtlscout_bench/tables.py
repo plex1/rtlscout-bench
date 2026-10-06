@@ -7,7 +7,7 @@
     python -m rtlscout_bench.tables --campaign runs/campaigns/<name>.json    # status of one campaign's runs
 
 Per entry the table reports the best cost reached per run as mean ± sample standard deviation over the n selected
-runs, the best single run, the mean relative to the unmodified starting point, wall-clock per run and API cost
+runs, the best single run, the mean relative to the unmodified starting point, runtime per run and API cost
 per run at list prices. This module also holds the aggregation that the site generator and ``publish`` share.
 """
 from __future__ import annotations
@@ -169,7 +169,7 @@ def _caption(board: dict) -> str:
         parts.append(f"Starting point: {starts} ({_unit(board)}).")
     parts.append(f"Numbers: best {board['metric_label']} reached per run, mean ± sample sd over n independent runs; "
                  f"`best run` is the single best run, `vs. start` the mean relative to the unmodified starting "
-                 f"point, runtime the wall-clock per run, $/run the API cost from recorded token usage at list prices.")
+                 f"point, runtime the duration of the agent run, $/run the API cost from recorded token usage at list prices.")
     return " ".join(parts)
 
 

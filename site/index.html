@@ -204,8 +204,9 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div><h2>Convergence</h2><p id="conv-desc"></p></div>
     <div class="segs">
       <div class="seg" role="group" aria-label="Horizontal axis">
-        <button aria-pressed="true" data-x="eval">By evaluation</button>
-        <button aria-pressed="false" data-x="time">By wall-clock</button>
+        <button aria-pressed="true" data-x="step">By step</button>
+        <button aria-pressed="false" data-x="eval">By evaluation</button>
+        <button aria-pressed="false" data-x="time">By runtime</button>
       </div>
       <div class="seg" role="group" aria-label="Aggregation across runs">
         <button aria-pressed="true" data-agg="median">Median</button>
@@ -221,7 +222,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </div></section>
 
 <section id="cost"><div class="wrap">
-  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Wall-clock per run is in the table above.</p></div></div>
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Runtime per run is in the table above.</p></div></div>
   <div class="card" style="margin-top:14px">
     <div class="chart" id="scatter"></div>
     <div class="cap" id="scatter-cap">Error bars are one standard deviation on both axes.</div>
@@ -278,7 +279,7 @@ const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7'];
 const LANG = {verilog:'Verilog', spirehdl:'Spire HDL'};
 const SUP = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
 let T = D.tasks[0];
-let convAgg = 'median', convX = 'eval';
+let convAgg = 'median', convX = 'step';
 const hidden = new Set();
 const tip = $('tip');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -394,29 +395,45 @@ function bestByEval(run, n){            // best passing cost after each evaluati
   for(let e=1;e<=n;e++){ const t=byEval.get(e); if(t&&t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); out.push(best); }
   return out;
 }
+function bestByStep(run, n){            // best passing cost after each agent step 1..n (carried forward)
+  const pts = run.traj.filter(t=>t.s!=null).slice().sort((a,b)=>a.s-b.s);
+  const out=[]; let best=null, i=0;
+  for(let k=1;k<=n;k++){ while(i<pts.length && pts[i].s<=k){ const t=pts[i++]; if(t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); } out.push(best); }
+  return out;
+}
 function bestByTime(run, grid){         // best passing cost at each time of the grid (minutes since run start)
   const pts = run.traj.filter(t=>t.t!=null).slice().sort((a,b)=>a.t-b.t);
   const out=[]; let best=null, i=0;
   grid.forEach(g=>{ while(i<pts.length && pts[i].t<=g){ const t=pts[i++]; if(t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); } out.push(best); });
   return out;
 }
+function runEnd(run, mode){             // where a run's own trajectory ends on the chosen axis
+  if(mode==='time') return Math.max(...run.traj.filter(t=>t.t!=null).map(t=>t.t), 0);
+  if(mode==='step') return run.steps!=null ? run.steps : Math.max(...run.traj.filter(t=>t.s!=null).map(t=>t.s), 0);
+  return run.n_evals;
+}
+const CONV_AXIS = {step:'step →', eval:'evaluation number →', time:'minutes since run start →'};
 function renderConv(){
   const R = rows(), langs = langsWithBase();
   const timed = R.some(r=>r.runs.some(x=>x.traj.some(t=>t.t!=null)));
-  document.querySelectorAll('.seg button[data-x]').forEach(b=>{ if(b.dataset.x==='time') b.hidden = !timed; });
-  if(convX==='time' && !timed) convX='eval';
-  const byTime = convX==='time';
-  let xs;                                 // the horizontal positions: evaluation numbers, or minutes
-  if(byTime){
-    const tmax = Math.max(...R.flatMap(r=>r.runs.flatMap(x=>x.traj.filter(t=>t.t!=null).map(t=>t.t))));
-    xs = Array.from({length:161},(_,i)=>tmax*i/160);
-  } else {
-    const N = Math.max(...R.flatMap(r=>r.runs.map(x=>x.n_evals)), 2);
-    xs = Array.from({length:N},(_,i)=>i+1);
-  }
+  const stepped = R.some(r=>r.runs.some(x=>x.traj.some(t=>t.s!=null)));
+  document.querySelectorAll('.seg button[data-x]').forEach(b=>{ if(b.dataset.x==='time') b.hidden = !timed; if(b.dataset.x==='step') b.hidden = !stepped; });
+  if((convX==='time' && !timed) || (convX==='step' && !stepped)) convX='eval';
+  document.querySelectorAll('.seg button[data-x]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.x===convX?'true':'false'));
+  const mode = convX, byTime = mode==='time';
+  let xs;                                 // the horizontal positions: steps, evaluation numbers, or minutes
+  const gmax = Math.max(...R.flatMap(r=>r.runs.map(x=>runEnd(x,mode))), 2);
+  if(byTime) xs = Array.from({length:161},(_,i)=>gmax*i/160);
+  else xs = Array.from({length:Math.round(gmax)},(_,i)=>i+1);
+  // Per entry: the aggregate over its runs at each x. A run that has stopped keeps its last value, so the
+  // aggregate stays over all the entry's runs; the series ends where the entry's longest run ends, and
+  // `alive` counts the runs still running at that x (drawn dashed when not all of them are).
   const series = R.map(r=>{
-    const mats = r.runs.map(run=>byTime ? bestByTime(run,xs) : bestByEval(run,xs.length));
-    return {r, y: xs.map((_,j)=>{ const v = aggVals(mats.map(m=>m[j]).filter(v=>v!=null).map(sc)); return v; })};
+    const mats = r.runs.map(run=>byTime ? bestByTime(run,xs) : mode==='step' ? bestByStep(run,xs.length) : bestByEval(run,xs.length));
+    const ends = r.runs.map(run=>runEnd(run,mode)), rend = Math.max(...ends, 0);
+    const y = xs.map((x,j)=> x>rend+1e-9 ? null : aggVals(mats.map(m=>m[j]).filter(v=>v!=null).map(sc)));
+    const alive = xs.map(x=>ends.filter(e=>e>=x-1e-9).length);
+    return {r, y, alive, n:r.runs.length};
   });
   const ys = series.flatMap(s=>s.y.filter(v=>v!=null)).concat(langs.map(l=>sc(T.baselines[l].cost)));
   const W=960, ml=56, mr=170, mt=24, mb=36, H=360;
@@ -424,13 +441,14 @@ function renderConv(){
   const xa = xs[0], xb = xs[xs.length-1];
   const X = v => ml + (xb>xa ? (v-xa)/(xb-xa) : 0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   const aggName = convAgg==='min'?'best single run (min)':convAgg;
-  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`Best cost so far ${byTime?'over wall-clock time':'per evaluation'}, ${convAgg} per entry`});
-  $('conv-desc').textContent = `Best verified cost reached so far, ${byTime?'against minutes since the run started':'per evaluation'}, ${aggName} across each entry's runs. A run's last value carries forward once it stops evaluating. Click a legend entry to hide it.`;
+  const axisName = {step:'per agent step', eval:'per evaluation', time:'against minutes since the run started'}[mode];
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`Best cost so far ${axisName}, ${convAgg} per entry`});
+  $('conv-desc').textContent = `Best verified cost reached so far, ${axisName}, ${aggName} across each entry's runs. Within an entry a run that has stopped keeps its last value, so the ${aggName} stays over all its runs; a line ends where the entry's longest run ends and is dashed where not all of its runs are still running. Click a legend entry to hide it.`;
   ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
   if(byTime){ const at = niceTicks(0,xb,8); at.ticks.filter(v=>v<=xb).forEach(v=>svg.appendChild(txt(X(v),H-mb+16,v.toFixed(at.dec),{'text-anchor':'middle'}))); }
   else { const st = xb>60?10:5; for(let e=st;e<=xb;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'})); }
   svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
-  svg.appendChild(txt(ml,H-4,byTime?'minutes since run start →':'evaluation number →'));
+  svg.appendChild(txt(ml,H-4,CONV_AXIS[mode]));
   svg.appendChild(txt(ml-8,mt-8,`${short()} ${unit().split(' ')[0]}`,{'text-anchor':'end'}));
   langs.forEach(l=>{ const b=sc(T.baselines[l].cost); svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(b),y2:Y(b),class:'ref'})); });
   const ends = series.filter(s=>!hidden.has(s.r.entry)).map(s=>{ let last=null; for(const v of s.y) if(v!=null) last=v; return {s,y:last==null?0:Y(last),v:last}; }).filter(e=>e.v!=null)
@@ -439,9 +457,17 @@ function renderConv(){
   ends.filter(e=>e.start).forEach(e=>svg.appendChild(txt(W-mr+8,e.y+4,`${e.start} ${e.v.toFixed(2)}`,{})));
   series.forEach(s=>{
     if(hidden.has(s.r.entry)) return;
-    let d='', pen=false;
-    s.y.forEach((v,i)=>{ if(v==null){pen=false;return;} d += (pen?'L':'M')+X(xs[i]).toFixed(1)+' '+Y(v).toFixed(1); pen=true; });
-    svg.appendChild(el('path',{d,fill:'none',stroke:colorOf[s.r.entry],'stroke-width':2,'stroke-linejoin':'round'}));
+    // one solid path while every run of the entry is still running, dashed segments afterwards
+    let segs=[], cur=null;
+    s.y.forEach((v,i)=>{
+      if(v==null){ cur=null; return; }
+      const full = s.alive[i]===s.n;
+      if(!cur || cur.full!==full){ const prev = cur; cur={full, pts:[]}; if(prev && prev.pts.length) cur.pts.push(prev.pts[prev.pts.length-1]); segs.push(cur); }
+      cur.pts.push([X(xs[i]),Y(v)]);
+    });
+    segs.forEach(sg=>{ if(sg.pts.length<2) return;
+      const d = sg.pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
+      svg.appendChild(el('path',{d,fill:'none',stroke:colorOf[s.r.entry],'stroke-width':2,'stroke-linejoin':'round',...(sg.full?{}:{'stroke-dasharray':'5 4','opacity':'0.75'})})); });
     const e = ends.find(x=>x.s===s);
     if(e) svg.appendChild(txt(W-mr+8,e.y+4,`${s.r.label} ${e.v.toFixed(2)}`,{class:'lbl'}));
   });
@@ -452,8 +478,9 @@ function renderConv(){
     const pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
     const j = Math.max(0,Math.min(xs.length-1,Math.round((p.x-ml)/(W-ml-mr)*(xs.length-1))));
     cursor.setAttribute('x1',X(xs[j])); cursor.setAttribute('x2',X(xs[j])); cursor.setAttribute('visibility','visible');
-    const lines = series.filter(s=>!hidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>a.y[j]-b.y[j]).map(s=>`<span class="sw" style="background:${colorOf[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(3)}</span>`).join('<br>');
-    showTip(ev,`<b>${byTime?'after '+xs[j].toFixed(0)+' min':'after evaluation '+xs[j]}</b> · ${esc(aggName)} of runs<br>${lines}`);
+    const lines = series.filter(s=>!hidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>a.y[j]-b.y[j]).map(s=>`<span class="sw" style="background:${colorOf[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(3)}</span>${s.alive[j]<s.n?` <span style="opacity:.65">(${s.alive[j]} of ${s.n} runs still running)</span>`:''}`).join('<br>');
+    const where = byTime ? 'after '+xs[j].toFixed(0)+' min' : mode==='step' ? 'after step '+xs[j] : 'after evaluation '+xs[j];
+    showTip(ev,`<b>${where}</b> · ${esc(aggName)} of runs<br>${lines}`);
   });
   hit.addEventListener('mouseleave',()=>{cursor.setAttribute('visibility','hidden');hideTip();});
   const host=$('conv'); host.innerHTML=''; host.appendChild(svg);
