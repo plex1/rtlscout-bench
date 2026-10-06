@@ -6,10 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 license = { file = "LICENSE" }
 dependencies = [
-    # The engine, pinned to a tag. This pin is how the leaderboard moves to a new rtlscout version (docs/manual.md,
+    # The engine, pinned to a commit (a tag once one exists). This pin is how the leaderboard moves to a new rtlscout
+    # version (docs/manual.md,
     # "Upgrading rtlscout"). A direct reference is fine here: this project is installed from its checkout and is
     # never uploaded to a package index.
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@v0.2.0",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@f4152b6f7a50d5d345543f46e01819118c32cbca",
     "pyyaml>=6.0",
 ]
 

@@ -43,11 +43,16 @@ LAUNCH_STAGGER_S = 2.0
 
 
 def installed_version(dist: str) -> str | None:
-    """Version of an installed distribution, without importing it."""
+    """Version of an installed distribution, without importing it. A distribution installed from git carries its
+    commit as well (`0.2.0+git.f4152b6`): the version number alone does not identify untagged code."""
     try:
-        return importlib.metadata.version(dist)
+        dist_info = importlib.metadata.distribution(dist)
     except importlib.metadata.PackageNotFoundError:
         return None
+    version = dist_info.version
+    direct_url = dist_info.read_text("direct_url.json")
+    commit = (json.loads(direct_url).get("vcs_info") or {}).get("commit_id") if direct_url else None
+    return f"{version}+git.{commit[:7]}" if commit else version
 
 
 # --------------------------------------------------------------------------------------------------------------

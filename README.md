@@ -21,7 +21,7 @@ first command.
 
 | what | where |
 |---|---|
-| the engine: agent loop and evaluation flow | the [`rtlscout`](https://github.com/huawei-csl/rtlscout) package, pinned to a tag in `pyproject.toml` |
+| the engine: agent loop and evaluation flow | the [`rtlscout`](https://github.com/huawei-csl/rtlscout) package, pinned to a commit or tag in `pyproject.toml` |
 | the suite: benchmark directories | `benchmarks/` (this repository) |
 | what is scored and who is scored | `campaign_matrix.yaml`: `tasks` and `entries` |
 | the tooling | the `rtlscout_bench` package (this repository) |

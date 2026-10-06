@@ -120,7 +120,7 @@ uv pip install -e .
 python -c "import importlib.metadata as m; print('rtlscout', m.version('rtlscout'))"
 ```
 
-`uv pip install -e .` installs this repository's tooling and pulls `rtlscout` by git URL at the tag pinned in
+`uv pip install -e .` installs this repository's tooling and pulls `rtlscout` by git URL at the commit pinned in
 `pyproject.toml`; the last line must print that version. The image's Python environment is a `uv` environment,
 which is why the command is `uv pip` and not `pip`.
 
@@ -942,14 +942,14 @@ runs.
 
 ## 10. Upgrading rtlscout
 
-The rtlscout version is pinned by git tag in `pyproject.toml`:
+The rtlscout version is pinned by git commit (or tag) in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@v0.2.0",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@f4152b6f7a50d5d345543f46e01819118c32cbca",
 ```
 
-To move the leaderboard to a new version, change the tag, commit, and reinstall inside the container:
+To move the leaderboard to a new version, change the commit or tag, commit, and reinstall inside the container:
 
 <!-- TO-VERIFY -->
 ```bash
