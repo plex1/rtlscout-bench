@@ -477,7 +477,7 @@ This output was taken when the twelve seed runs were recorded in `data/` but not
 2. data check: 12 records (12 selected, 0 excluded): OK
 3. dry run: data/ not committed (12 new run record(s) would be)
 
-4. leaderboard as published (data @ 766445b)
+4. leaderboard as published (data @ 323c78a)
 tpu-adp: logikbench tpu  [area × delay, 10^6 µm²·ps; lower is better]
 starting point (Verilog): 4,624,408.88 = 4.624
 (no runs selected)
