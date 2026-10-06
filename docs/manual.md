@@ -120,6 +120,10 @@ uv pip install -e .
 python -c "import importlib.metadata as m; print('rtlscout', m.version('rtlscout'))"
 ```
 
+```text
+rtlscout 0.2.0
+```
+
 `uv pip install -e .` installs this repository's tooling and pulls `rtlscout` by git URL at the commit pinned in
 `pyproject.toml`; the last line must print that version. The image's Python environment is a `uv` environment,
 which is why the command is `uv pip` and not `pip`.
@@ -133,8 +137,8 @@ python -m rtlscout.run_benchmark --benchmark simple_adder --model fake:simple_ad
 <!-- doctest-expect: Best: PASS -->
 
 ```text
-Best design saved: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261005_231836/best_design
-Results stored in: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261005_231836
+Best design saved: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261006_064516/best_design
+Results stored in: /tmp/rtlscout-smoke-runs/simple_adder/simple_adder_pass/20261006_064516
 
 Best: PASS | 308 transistors (step 1)
 ```
@@ -157,15 +161,15 @@ python -m rtlscout_bench.site --matrix tests/smoke/campaign_matrix.yaml --data /
 <!-- doctest-expect: 1 task(s), 1 row(s), 1 run(s) -->
 
 ```text
-suite smoke · rtlscout 0.2.0 · spire-hdl 0.4.0 · parallel 2
+suite smoke · rtlscout 0.2.0+git.f4152b6 · spire-hdl 0.4.0 · parallel 2
   adder-transistors / fake-adder           0 of 1 runs done, 1 to launch
 [start] baseline adder-transistors/verilog
 [start] adder-transistors/fake-adder r0
 [baseline] adder-transistors/verilog: ok  cost 308.00
-[done] adder-transistors/fake-adder r0: completed  best 308.00  run 20261005_231938  (0 min)
+[done] adder-transistors/fake-adder r0: completed  best 308.00  run 20261006_064929  (0 min)
 campaign smoke: 1 of 1 runs completed, 1 baseline(s) measured -> /tmp/rtlscout-bench-smoke/runs/campaigns/smoke.json
 campaign /tmp/rtlscout-bench-smoke/runs/campaigns/smoke.json
-  recorded adder-transistors/fake-adder/20261005_231938  best 308.00
+  recorded adder-transistors/fake-adder/20261006_064929  best 308.00
 recorded 1, already recorded 0, skipped 0, refused 0
 data check: 1 records (1 selected, 0 excluded), 1 leaderboard file(s), 1 models, open-weights policy off: OK
 adder-transistors: adder-transistors  [cost; lower is better]
@@ -360,14 +364,14 @@ python -m rtlscout_bench.campaign --baselines-only     # starting points only: a
 ```
 
 ```text
-suite suite-v1 · rtlscout 0.2.0 · spire-hdl 0.4.0 · parallel 2
+suite suite-v1 · rtlscout 0.2.0+git.f4152b6 · spire-hdl 0.4.0 · parallel 2
   tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
   tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
   tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
   tpu-adp / kimi-k3-high                   0 of 3 runs done, 3 to launch
 [start] baseline tpu-adp/verilog
 [baseline] tpu-adp/verilog: ok  cost 4,624,408.88
-campaign 20261005_231945: 0 of 0 runs completed, 1 baseline(s) measured -> runs/campaigns/20261005_231945.json
+campaign 20261006_064936: 0 of 0 runs completed, 1 baseline(s) measured -> runs/campaigns/20261006_064936.json
 ```
 
 <!-- TO-VERIFY -->
@@ -434,7 +438,7 @@ For the smoke campaign of [Setup](#2-setup) (`--campaign /tmp/rtlscout-bench-smo
 status table is:
 
 ```text
-# Campaign smoke · smoke · rtlscout 0.2.0
+# Campaign smoke · smoke · rtlscout 0.2.0+git.f4152b6
 
 | Task | Entry | n | Start | Best (median) | vs. start |
 |---|---|---|---|---|---|
@@ -444,7 +448,7 @@ status table is:
 
 | Task | Entry | Rep | Run | Status | Best (eval) | Evals |
 |---|---|---|---|---|---|---|
-| `adder-transistors` | `fake-adder` | 0 | `20261005_231845` | completed | 308 (eval 1) | 1 |
+| `adder-transistors` | `fake-adder` | 0 | `20261006_064929` | completed | 308 (eval 1) | 1 |
 ```
 
 **What a failed run looks like.** Each run ends in one of three states, shown in its `[done]` line, in the
