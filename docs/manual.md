@@ -113,7 +113,6 @@ docker run --rm -it -v "$PWD":/work -w /work --env-file .env ghcr.io/huawei-csl/
 
 Inside the container:
 
-<!-- TO-VERIFY -->
 ```bash
 . /home/vscode/pyenv_eda/bin/activate
 uv pip install -e .
