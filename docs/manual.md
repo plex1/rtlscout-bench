@@ -977,11 +977,22 @@ dependencies = [
 
 To move the leaderboard to a new version, change the commit or tag, commit, and reinstall inside the container:
 
-<!-- TO-VERIFY -->
 ```bash
 uv pip install -e .
 python -c "import importlib.metadata as m; print('rtlscout', m.version('rtlscout'))"
 python -m rtlscout_bench.campaign --baselines-only
+```
+
+```text
+rtlscout 0.2.0
+suite suite-v1 · rtlscout 0.2.0+git.f4152b6 · spire-hdl 0.4.0 · parallel 2
+  tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
+  tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
+  tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
+  tpu-adp / kimi-k3-high                   0 of 3 runs done, 3 to launch
+[start] baseline tpu-adp/verilog
+[baseline] tpu-adp/verilog: ok  cost 4,624,408.88
+campaign 20261006_064936: 0 of 0 runs completed, 1 baseline(s) measured -> runs/campaigns/20261006_064936.json
 ```
 
 The version is captured when a campaign is launched and written into every record of that campaign, and a
