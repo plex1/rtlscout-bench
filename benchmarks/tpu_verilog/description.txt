@@ -33,8 +33,8 @@ Ports:
 
 A working starting point is provided: `context/starting_point.v` is the
 original logikbench RTL (tpu_pe / tpu_array / tpu: PE mesh, per-row input
-skew, per-column output de-skew, valid pipeline). It passes all 6,782 golden
-cycles (3,400 result rows: directed zero/identity/extreme tiles, random tiles,
+skew, per-column output de-skew, valid pipeline). It passes every cycle of the golden
+trace in `vectors.dat` (directed zero/identity/extreme tiles, random tiles,
 back-to-back streams, a_valid gaps, mid-drain weight reloads, random soak).
 Study it, then optimize while preserving the cycle-accurate behavior. The
 sibling benchmark `tpu_spire` shares the identical testbench and vectors
