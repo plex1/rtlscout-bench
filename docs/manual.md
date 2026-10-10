@@ -231,31 +231,37 @@ policy: open_weights_only = true
 tasks
   tpu-adp            enabled   benchmark tpu           metric area_delay_product       --skip-cec
   jpeg-adp           enabled   benchmark jpeg_idct_2d  metric area_delay_product       --skip-cec
+  pdpu-adp           enabled   benchmark pdpu_dot16_pipe metric area_delay_product       --skip-cec
   qr-adp-fast        disabled  benchmark qr            metric area_delay_product_fast  --skip-cec RTLSCOUT_ADP_FAST_TIMEOUT=3600 heavy
   tpu-area-at-500    disabled  benchmark tpu           metric area                     target_delay=500 --skip-cec
 
 entries
-  glm-5.2                    enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp
-  kimi-k3                    enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp
-  nemotron-3-ultra           enabled   openrouter:nvidia/nemotron-3-ultra-550b-a55b   verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp
-  kimi-k3-high               enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp
-  glm-5.3-flash              enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp
-  glm-5.2-spire              disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize  -> tpu-adp, jpeg-adp
-  glm-5.2-spire-autoconfig   disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize --arith-autoconfig  -> tpu-adp, jpeg-adp
+  glm-5.2                    enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp
+  kimi-k3                    enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp
+  nemotron-3-ultra           enabled   openrouter:nvidia/nemotron-3-ultra-550b-a55b   verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp
+  kimi-k3-high               enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp
+  glm-5.3-flash              enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp
+  glm-5.2-spire              disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize  -> tpu-adp, jpeg-adp, pdpu-adp
+  glm-5.2-spire-autoconfig   disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize --arith-autoconfig  -> tpu-adp, jpeg-adp, pdpu-adp
 
 jobs (enabled task x enabled entry)
   tpu-adp / glm-5.2                        benchmarks/tpu_verilog       3 runs
   jpeg-adp / glm-5.2                       benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / glm-5.2                       benchmarks/pdpu_dot16_pipe_verilog 3 runs
   tpu-adp / kimi-k3                        benchmarks/tpu_verilog       3 runs
   jpeg-adp / kimi-k3                       benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / kimi-k3                       benchmarks/pdpu_dot16_pipe_verilog 3 runs
   tpu-adp / nemotron-3-ultra               benchmarks/tpu_verilog       3 runs
   jpeg-adp / nemotron-3-ultra              benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / nemotron-3-ultra              benchmarks/pdpu_dot16_pipe_verilog 3 runs
   tpu-adp / kimi-k3-high                   benchmarks/tpu_verilog       3 runs
   jpeg-adp / kimi-k3-high                  benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / kimi-k3-high                  benchmarks/pdpu_dot16_pipe_verilog 3 runs
   tpu-adp / glm-5.3-flash                  benchmarks/tpu_verilog       3 runs
   jpeg-adp / glm-5.3-flash                 benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / glm-5.3-flash                 benchmarks/pdpu_dot16_pipe_verilog 3 runs
 
-OK: 2 enabled task(s), 5 enabled entries, 30 runs for a full campaign
+OK: 3 enabled task(s), 5 enabled entries, 45 runs for a full campaign
 ```
 
 A mistake is reported with every problem at once and exit status 2. This is what a misspelt reasoning effort and

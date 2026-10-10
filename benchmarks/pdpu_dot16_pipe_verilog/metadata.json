@@ -1,0 +1,19 @@
+{
+  "name": "pdpu_dot16_pipe_verilog",
+  "module_name": "pdpu_top_pipelined",
+  "tb_module": "tb",
+  "language": "verilog",
+  "starting_point": "context/starting_point.v",
+  "cost_metric": [
+    "area_delay_product",
+    "area",
+    "yosys_transistors"
+  ],
+  "source": {
+    "origin": "github.com/qleenju/PDPU (ISCAS 2023, Apache-2.0), commit HEAD 2026-08-04",
+    "design": "pipelined pdpu_top_pipelined, 5 stages of reset-less flops. N overridden from 4 to 16; posit(8,2) inputs -> posit(16,2) accumulator and result, ALIGN_WIDTH=14, CARRY_W=5, SUM_W=19. Identical architecture, formats and rounding to the N=4 reference, so lane count is the only change.",
+    "port": "upstream SystemVerilog -> Verilog, by hand: packed 2-D arrays lowered to flat vectors (the one construct the yosys front end cannot read), function bodies use named assignment instead of `return`, SV casts -> $signed/$unsigned, simulation-only pragma regions dropped. Module hierarchy and arithmetic verbatim.",
+    "oracle": "vectors.dat expected_result is the reference RTL's own output (_debug/gen_vectors.py, from the combinational pdpu_dot16 benchmark); the unit is architecturally inexact vs ideal posit math, so reference-as-oracle is the only correct golden",
+    "testbench": "the testbench embeds the stimulus generator and the golden reference model: 2,000,000 vectors streamed one per cycle (directed corners plus LFSR-driven broad vectors), checked 5 edges later; vectors.dat is the directed set shared with the combinational benchmark"
+  }
+}

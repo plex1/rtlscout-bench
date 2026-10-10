@@ -31,7 +31,7 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     models = json.loads((REPO / "data" / "models.json").read_text())["models"]
     assert all(models[m.entry(i).model]["open_weights"] for i in enabled), "every enabled entry is open-weights"
     assert [e.id for e in m.entries if not e.enabled] == ["glm-5.2-spire", "glm-5.2-spire-autoconfig"]
-    assert [t.id for t in m.enabled_tasks()] == ["tpu-adp", "jpeg-adp"]
+    assert [t.id for t in m.enabled_tasks()] == ["tpu-adp", "jpeg-adp", "pdpu-adp"]
     assert {t.id for t in m.tasks.values() if not t.enabled} == {"qr-adp-fast", "tpu-area-at-500"}
     assert all(e.max_steps == 60 and e.repeats == 3 and e.agent_backend == "react" for e in m.entries)
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"

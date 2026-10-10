@@ -39,8 +39,7 @@ branch, 2026-07), files src_v/jpeg_idct_x.v, jpeg_idct_transpose.v,
 jpeg_idct_transpose_ram.v, jpeg_idct_y.v.
 
   Copyright 2020 Ultra-Embedded.com (per the source file headers)
-  License: Apache License 2.0. The upstream LICENSE file is reproduced
-  verbatim as benchmarks/LICENSE-core_jpeg.
+  License: Apache License 2.0, reproduced verbatim as benchmarks/LICENSE-apache-2.0.
 
 What is taken from upstream and how:
 
@@ -53,5 +52,29 @@ What is taken from upstream and how:
       recorded from the upstream RTL (recipe in _debug/README.md).
 
 The testbench (tb.sv), the stimulus generator, the task description and the
+metadata file were written for this suite and are covered by the LICENSE at
+the root of this repository.
+
+pdpu_dot16_pipe_verilog
+-----------------------
+
+Derived from PDPU, https://github.com/qleenju/PDPU (ISCAS 2023), main branch
+as of 2026-08-04, module pdpu_top_pipelined and the modules it instantiates.
+
+  License: Apache License 2.0, reproduced verbatim as benchmarks/LICENSE-apache-2.0.
+  Two helper modules inside the upstream sources carry headers of ETH Zurich
+  and the University of Bologna under the Solderpad Hardware License 0.51;
+  those headers are kept in place in context/starting_point.v.
+
+What is taken from upstream and how:
+
+  pdpu_dot16_pipe_verilog/context/starting_point.v
+      The upstream SystemVerilog with N raised from 4 to 16 and the rewrites
+      yosys's front end needs (listed in the file header): hierarchy,
+      arithmetic and pipeline cut points verbatim.
+  pdpu_dot16_pipe_verilog/tb.sv
+      Embeds the upstream combinational unit as the golden reference model.
+
+The streaming testbench, the stimulus generator, the task description and the
 metadata file were written for this suite and are covered by the LICENSE at
 the root of this repository.
