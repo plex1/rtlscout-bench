@@ -31,13 +31,14 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     models = json.loads((REPO / "data" / "models.json").read_text())["models"]
     assert all(models[m.entry(i).model]["open_weights"] for i in enabled), "every enabled entry is open-weights"
     assert [e.id for e in m.entries if not e.enabled] == ["glm-5.2-spire", "glm-5.2-spire-autoconfig"]
-    assert [t.id for t in m.enabled_tasks()] == ["tpu-adp"]
-    assert {t.id for t in m.tasks.values() if not t.enabled} == {"jpeg-adp", "qr-adp-fast", "tpu-area-at-500"}
+    assert [t.id for t in m.enabled_tasks()] == ["tpu-adp", "jpeg-adp"]
+    assert {t.id for t in m.tasks.values() if not t.enabled} == {"qr-adp-fast", "tpu-area-at-500"}
     assert all(e.max_steps == 60 and e.repeats == 3 and e.agent_backend == "react" for e in m.entries)
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
     assert m.tasks["tpu-adp"].flags == ("--skip-cec",) and m.tasks["qr-adp-fast"].heavy
-    assert len(m.jobs()) == len(enabled) and sum(e.repeats for _, e in m.jobs()) == 3 * len(enabled)
+    n_tasks = len(m.enabled_tasks())
+    assert len(m.jobs()) == n_tasks * len(enabled) and sum(e.repeats for _, e in m.jobs()) == 3 * n_tasks * len(enabled)
 
 
 def test_defaults_are_applied_and_overridden(bench):

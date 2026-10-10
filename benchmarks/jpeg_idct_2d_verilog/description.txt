@@ -1,0 +1,48 @@
+Full 8x8 2-D IDCT of a baseline JPEG decoder (ultraembedded/core_jpeg), module
+name `jpeg_idct_2d`: the row pass (jpeg_idct_x, OUT_SHIFT=11), a double-buffered
+corner-turn (jpeg_idct_transpose with four 32x32 dual-port RAMs), and the column
+pass (jpeg_idct_y, OUT_SHIFT=15), composed exactly as in the original decoder
+(downstream ready tied high; the row pass accepts no backpressure). Each 1-D
+pass is the factorized (AAN-style) algorithm with cosine constants scaled by
+4096 (C1..C7 = 4017, 3784, 3406, 2896, 2276, 1567, 799), time-sharing 5
+multipliers over an 8-beat schedule. ALL arithmetic is evaluated in 32-bit
+signed context with wrap-around; outputs of each pass are arithmetic-shifted
+right (11 then 15); the 1/sqrt(2) odd-part scaling is `(x * 181) / 256` where
+`*` wraps at 32 bits and `/` is SIGNED division truncating toward zero. This
+exact fixed-point behavior is what the golden vectors encode.
+
+Interface (clocked, sync active-high reset `rst`; no backpressure):
+  inputs : clk, rst, img_start_i (1-cycle pulse resets the output streamers),
+           img_end_i (unused), inport_valid_i, inport_idx_i[2:0],
+           inport_data0..3_i[15:0]
+  outputs: outport_valid_o, outport_data_o[31:0], outport_idx_o[5:0]
+
+Input protocol (the upstream block serializer's FIXED schedule, reproduced
+exactly by the testbench): per row of 8 coefficients c0..c7 (16-bit signed),
+8 back-to-back valid beats with idx = 0..7; the four data lanes carry the EVEN
+set (c0,c2,c4,c6) on beats idx in {0,2,5,7} and the ODD set (c1,c3,c5,c7) on
+beats idx in {1,3,4,6}. 8 rows back-to-back form a 64-beat block; between
+blocks there are >= 2 idle cycles (valid=0, idx=0, data=0). Pipeline registers
+advance every clock regardless of valid — designs must be robust to the gap
+pattern exactly as the original is.
+
+Output (fixed schedule): 64 values per block streamed on outport_valid_o; the
+k-th streamed value of a block carries outport_idx_o = {k[2:0], k[5:3]} (the
+column pass emits column-major; the idx label gives the ROW-MAJOR pixel
+position) and must match the expected output at that position. The stream of a
+block overlaps the next block's input beats (the transpose double-buffers one
+full block).
+
+A working starting point is provided: `context/starting_point.v` contains the
+ORIGINAL core_jpeg modules (Apache 2.0), unmodified, under a thin composition
+top. It passes all golden vectors (they were generated from it — the original
+RTL is the correctness oracle). Study it, then optimize while preserving its
+exact behavior. Sibling benchmark: `jpeg_idct_2d_spire` (identical tb.sv +
+vectors.dat, bit-exact SpireHDL starting point). The 1-D row pass alone is
+also available as the `jpeg_idct_x_*` benchmarks.
+
+NOTE on memories: the cost-evaluation synthesis flow targets a standard-cell
+library with no RAM macros, so every behavioral memory in this design (the
+transpose buffers, block_out, etc.) is inferred as a register array plus mux
+decode REGARDLESS of coding style. Optimizing that decode/mux logic is fair
+game; instantiating a hard RAM macro is not possible in this flow.
