@@ -88,7 +88,8 @@ a reference, the twelve seed runs that are on the page took between 39 and 115 m
 run-hours in total) and cost $59.90 in total at list prices: $8.11 for the three GLM 5.2 runs, $23.54 and $22.18
 for the two Kimi K3 trios, $6.07 for Nemotron 3 Ultra. Those ran six at a time against a shorter vector file
 than `suite-v1` ships, so expect evaluations, and therefore runs, to take longer; the token cost depends on the
-model's behaviour, not on the vector file. Measuring a starting point costs no API money.
+model's behaviour, not on the vector file. The first `suite-v1` entry (GLM 5.3 Flash, three runs at once,
+2026-10-10) took 107 to 144 minutes per run and $0.69 each. Measuring a starting point costs no API money.
 
 ---
 
@@ -474,7 +475,13 @@ API error inside a run does not end it: rtlscout spends that step and continues.
 
 ## 5. Publishing
 
-`publish` wraps recording, committing the data and bumping the pointer. Look first, with a dry run:
+`publish` wraps recording, committing the data and bumping the pointer. It pushes with your git credentials, so
+run it on the host checkout (it needs only Python and `pyyaml`, not rtlscout): the container has no GitHub
+credentials unless you mount them. `campaign` and `record` can run in the container; `publish` on the host
+picks up their output. Should `publish` run in the container anyway, it records and commits and then stops
+at the push; running it again on the host finishes the job (nothing is recorded twice).
+
+Look first, with a dry run:
 
 ```bash
 python -m rtlscout_bench.publish --dry-run

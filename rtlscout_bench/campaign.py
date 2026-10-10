@@ -254,6 +254,7 @@ class Campaign:
         with open(log, "w") as lf:
             lf.write("$ " + " ".join(cmd) + "\n")
             lf.flush()
+            env = {**env, "PYTHONUNBUFFERED": "1"}       # the log follows the run, not Python's block buffer
             proc = subprocess.Popen([sys.executable] + cmd[1:], env=env, stdout=lf, stderr=subprocess.STDOUT, text=True)
             with self.cv:
                 self.procs.add(proc)

@@ -46,6 +46,18 @@ def git(repo: Path, *args: str, check: bool = True) -> str:
     return proc.stdout.strip()
 
 
+def identity_args(submodule: Path) -> list[str]:
+    """`-c user.name=… -c user.email=…` of the superproject's configuration, so a commit made in the submodule
+    carries the same identity as the commits around it (a submodule checkout has its own config)."""
+    top = git(submodule, "rev-parse", "--show-superproject-working-tree", check=False)
+    out: list[str] = []
+    for key in ("user.name", "user.email"):
+        value = git(Path(top), "config", key, check=False) if top else ""
+        if value:
+            out += ["-c", f"{key}={value}"]
+    return out
+
+
 def is_git_checkout(path: Path) -> bool:
     """True when *path* is the top level of a git working tree (a submodule checkout counts)."""
     try:
@@ -187,7 +199,7 @@ def _publish(args, matrix: Matrix, bench: Path, data: Path, runs_dir: Path, tmp:
         if git(data, "status", "--porcelain"):
             msg = args.message or default_message(new_records(data))
             git(data, "add", "-A")
-            git(data, "commit", "-m", msg)
+            git(data, *identity_args(data), "commit", "-m", msg)
             print(f"3. committed data @ {git(data, 'rev-parse', '--short', 'HEAD')}: {msg}")
         else:
             print(f"3. data/ has nothing new to commit (HEAD {git(data, 'rev-parse', '--short', 'HEAD')})")
