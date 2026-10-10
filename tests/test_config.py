@@ -25,7 +25,7 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     monkeypatch.chdir(REPO)
     m = load_matrix()
     assert m.suite == "suite-v1" and m.open_weights_only is True
-    assert [e.id for e in m.entries if e.enabled] == ["glm-5.2", "kimi-k3", "nemotron-3-ultra", "kimi-k3-high"]
+    assert [e.id for e in m.entries if e.enabled] == ["glm-5.2", "kimi-k3", "nemotron-3-ultra", "kimi-k3-high", "glm-5.3-flash"]
     assert [e.id for e in m.entries if not e.enabled] == ["glm-5.2-spire", "glm-5.2-spire-autoconfig"]
     assert [t.id for t in m.enabled_tasks()] == ["tpu-adp"]
     assert {t.id for t in m.tasks.values() if not t.enabled} == {"jpeg-adp", "qr-adp-fast", "tpu-area-at-500"}
@@ -33,7 +33,7 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
     assert m.tasks["tpu-adp"].flags == ("--skip-cec",) and m.tasks["qr-adp-fast"].heavy
-    assert len(m.jobs()) == 4 and sum(e.repeats for _, e in m.jobs()) == 12
+    assert len(m.jobs()) == 5 and sum(e.repeats for _, e in m.jobs()) == 15
 
 
 def test_defaults_are_applied_and_overridden(bench):

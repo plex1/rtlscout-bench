@@ -54,6 +54,8 @@ entries:                               # open-weights models only, for now
   - id: kimi-k3-high                   # same model, second row with a different reasoning effort
     model: openrouter:moonshotai/kimi-k3
     reasoning_effort: high
+  - id: glm-5.3-flash
+    model: openrouter:z-ai/glm-5.3-flash
   - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
     model: openrouter:z-ai/glm-5.2
     language: spirehdl
