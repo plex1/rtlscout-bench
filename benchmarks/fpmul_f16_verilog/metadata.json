@@ -1,0 +1,17 @@
+{
+  "name": "fpmul_f16_verilog",
+  "module_name": "fp_mul_e5f10",
+  "tb_module": "tb",
+  "language": "verilog",
+  "starting_point": "context/starting_point.v",
+  "cost_metric": ["area_delay_product", "area"],
+  "golden_reference": "golden/design.v",
+  "golden_reference_language": "verilog",
+  "source": {
+    "origin": "rtlscout benchmark fpmul_f16, https://github.com/huawei-csl/rtlscout (BSD-3-Clause-Clear): testbench and golden reference",
+    "design": "IEEE binary16 multiplier with subnormal inputs and outputs, round to nearest even, canonical quiet NaN",
+    "starting_point": "context/starting_point.v was written for this suite as a plain readable Verilog implementation; it is formally equivalent to golden/design.v (yosys-abc cec) and passes the testbench",
+    "golden": "golden/design.v is rtlscout's reference (Spire HDL source compiled to Verilog); not shown to the agent, used by the equivalence check of every evaluation",
+    "testbench": "tb.sv embeds the same reference and enumerates about 18.9M operand pairs (every subnormal/zero operand against structured partners, plus LFSR-driven broad pairs); no stimulus file"
+  }
+}

@@ -64,7 +64,8 @@ Running campaigns needs the rtlscout container image and provider API keys; see 
   weight-stationary 8x8 systolic matrix-multiply tile from [LogikBench](https://github.com/zeroasiccorp/logikbench),
   MIT; also present as a Spire HDL port), `jpeg_idct_2d` (the full 8x8 2-D IDCT of
   [core_jpeg](https://github.com/ultraembedded/core_jpeg), Apache-2.0) and `pdpu_dot16_pipe` (the pipelined
-  16-lane posit dot-product unit of [PDPU](https://github.com/qleenju/PDPU), Apache-2.0). See `benchmarks/README.md`.
+  16-lane posit dot-product unit of [PDPU](https://github.com/qleenju/PDPU), Apache-2.0) and `fpmul_f16` (an IEEE
+  binary16 multiplier with subnormals; its evaluations include a formal equivalence check). See `benchmarks/README.md`.
 - **Open-weights models only.** `policy.open_weights_only` in the matrix makes the recorder and the site build
   refuse any model that is not marked open-weights in `data/models.json`.
 - The first rows on the page are seed data measured before the suite was fixed. They are labelled as such and
