@@ -2,4 +2,4 @@ Design a module named fp_mul_e5f10 that multiplies two floating-point numbers. F
 
 Required behaviour, bit-exact: subnormal inputs are used at their true value; results are rounded to nearest, ties to even, including results in the subnormal range; a NaN input and inf x 0 give the canonical quiet NaN 16'h7E00; inf x finite gives inf with the product's sign; an overflowing product gives inf; a zero product gives a signed zero. The testbench enumerates about 18.9 million operand pairs against a reference implementation, and every evaluation also checks your design for formal equivalence with it.
 
-A working starting point is provided: `context/starting_point.v`, a plain readable implementation (unpack, significand multiply, normalise, round, pack) that is correct. Study it, then optimize from there.
+A working starting point is provided: `starting_point.v` in your workspace, a plain readable implementation (unpack, significand multiply, normalise, round, pack) that is correct. Optimize from there.
