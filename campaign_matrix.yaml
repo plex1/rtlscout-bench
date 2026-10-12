@@ -6,7 +6,8 @@
 # Validate and print the resolved matrix:   python -m rtlscout_bench.config
 # Field reference:                          docs/manual.md, "Adding a task" and "Adding a model"
 
-suite: suite-v1                        # written into every run record; bump when a benchmark or the scoring changes
+suite: suite-v2                        # written into every run record; bump when a benchmark, the scoring or the agent changes
+                                       # v2 (2026-10-12): rtlscout ce38834 (agent messages), provider pin + completion cap
 policy:
   open_weights_only: true              # record.py and site.py refuse any model not marked open_weights in data/models.json
 

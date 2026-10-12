@@ -25,7 +25,7 @@ def _problems(bench, mutate) -> str:
 def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     monkeypatch.chdir(REPO)
     m = load_matrix()
-    assert m.suite == "suite-v1" and m.open_weights_only is True
+    assert m.suite == "suite-v2" and m.open_weights_only is True
     enabled = [e.id for e in m.entries if e.enabled]
     assert enabled[:4] == ["glm-5.2", "kimi-k3", "nemotron-3-ultra", "kimi-k3-high"]     # the first campaign
     models = json.loads((REPO / "data" / "models.json").read_text())["models"]

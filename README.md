@@ -60,7 +60,7 @@ Running campaigns needs the rtlscout container image and provider API keys; see 
 
 ## Scope today
 
-- **suite-v1** scores two designs by area × delay on ASAP7, Verilog entries only for now: `tpu` (a
+- **suite-v2** (2026-10-12) scores four designs by area × delay on ASAP7, Verilog entries only for now: `tpu` (a
   weight-stationary 8x8 systolic matrix-multiply tile from [LogikBench](https://github.com/zeroasiccorp/logikbench),
   MIT; also present as a Spire HDL port), `jpeg_idct_2d` (the full 8x8 2-D IDCT of
   [core_jpeg](https://github.com/ultraembedded/core_jpeg), Apache-2.0) and `pdpu_dot16_pipe` (the pipelined
@@ -69,7 +69,9 @@ Running campaigns needs the rtlscout container image and provider API keys; see 
 - **Open-weights models only.** `policy.open_weights_only` in the matrix makes the recorder and the site build
   refuse any model that is not marked open-weights in `data/models.json`.
 - The first rows on the page are seed data measured before the suite was fixed. They are labelled as such and
-  are replaced by reruns under `suite-v1`.
+  are replaced by reruns under the current suite. suite-v1 (2026-10-06) had the same four tasks; suite-v2 moves to
+  rtlscout ce38834 (two agent-facing messages changed), caps every OpenRouter completion at 65,536 tokens and pins the
+  GLM entries to the vendor's endpoint, so its runs are not comparable with suite-v1 runs.
 
 ## Tests
 

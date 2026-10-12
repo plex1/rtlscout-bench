@@ -55,7 +55,7 @@ python -m rtlscout_bench.campaign --dry-run
 <!-- doctest-expect: · parallel 2 -->
 
 ```text
-suite suite-v1 · rtlscout not installed · spire-hdl not installed · parallel 2
+suite suite-v2 · rtlscout not installed · spire-hdl not installed · parallel 2
   tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
   tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
   tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
@@ -87,8 +87,8 @@ site. On anything else the page stays as it is. `--dry-run` shows the same table
 a reference, the twelve seed runs that are on the page took between 39 and 115 minutes each (75 on average, 15
 run-hours in total) and cost $59.90 in total at list prices: $8.11 for the three GLM 5.2 runs, $23.54 and $22.18
 for the two Kimi K3 trios, $6.07 for Nemotron 3 Ultra. Those ran six at a time against a shorter vector file
-than `suite-v1` ships, so expect evaluations, and therefore runs, to take longer; the token cost depends on the
-model's behaviour, not on the vector file. The first `suite-v1` entry (GLM 5.3 Flash, three runs at once,
+than the suite ships, so expect evaluations, and therefore runs, to take longer; the token cost depends on the
+model's behaviour, not on the vector file. The first suite-v1 entry (GLM 5.3 Flash, three runs at once,
 2026-10-10) took 107 to 144 minutes per run and $0.69 each. Measuring a starting point costs no API money.
 
 ---
@@ -225,7 +225,7 @@ python -m rtlscout_bench.config
 
 ```text
 matrix: campaign_matrix.yaml
-suite:  suite-v1
+suite:  suite-v2
 policy: open_weights_only = true
 
 tasks
@@ -394,7 +394,7 @@ python -m rtlscout_bench.campaign --baselines-only     # starting points only: a
 ```
 
 ```text
-suite suite-v1 · rtlscout 0.2.0+git.f4152b6 · spire-hdl 0.4.0 · parallel 2
+suite suite-v2 · rtlscout 0.2.0+git.ce38834 · spire-hdl 0.4.0 · parallel 2
   tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
   tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
   tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
@@ -426,7 +426,7 @@ python -m rtlscout_bench.campaign --entry glm-5.2 -n 1 --dry-run
 <!-- doctest-expect: dry run: -->
 
 ```text
-suite suite-v1 · rtlscout not installed · spire-hdl not installed · parallel 2
+suite suite-v2 · rtlscout not installed · spire-hdl not installed · parallel 2
   tpu-adp / glm-5.2                        0 of 3 runs done, 1 to launch
 [baseline] tpu-adp/verilog: python -m rtlscout.run_eval benchmarks/tpu_verilog/context/starting_point.v --benchmark benchmarks/tpu_verilog --cost-metric area_delay_product --skip-cec --json
 [run] tpu-adp/glm-5.2 r0: python -m rtlscout.run_benchmark --benchmark tpu_verilog --language verilog --model openrouter:z-ai/glm-5.2 --max-steps 60 --benchmarks-root benchmarks --runs-dir runs/tpu-adp/glm-5.2 --cost-metric area_delay_product --skip-cec
@@ -566,7 +566,7 @@ page was built from. A dry run does steps 1, 2 and 4 on a temporary copy of `dat
 | `~ starting point` | the baseline of a task changed. Every "vs. start" of that task moves with it; a change you did not expect means the evaluation flow changed |
 
 When reruns of an entry are recorded, that entry's seed runs are superseded automatically: the row switches from
-the seed runs to the new ones in one step and appears here as `~ row changed ... (pre-v1) -> ... (suite-v1)`.
+the seed runs to the new ones in one step and appears here as `~ row changed ... (pre-v1) -> ... (suite-v2)`.
 The same happens when an entry's conditions change (a provider pin, a step budget): its earlier runs are excluded
 with the reason `superseded by runs under the entry's current conditions (env changed)`, one row never mixing
 conditions.
@@ -716,7 +716,8 @@ model; it has rows once a Spire HDL entry has runs. `--task <id>` restricts any 
 
 ## 7. How a score is computed
 
-**The benchmark.** `suite-v1` has one design: the `tpu` benchmark of LogikBench, a weight-stationary 8x8 systolic
+**The benchmark.** The suite has four designs (`tpu`, `jpeg_idct_2d`, `pdpu_dot16_pipe`, `fpmul_f16`); this section
+follows the first. `tpu` is the LogikBench tpu benchmark, a weight-stationary 8x8 systolic
 matrix-multiply tile (8-bit signed operands, 32-bit accumulators, 15-cycle latency). The agent starts from the
 unmodified upstream RTL (`benchmarks/tpu_verilog/context/starting_point.v`) and must preserve its behaviour
 cycle by cycle: the testbench replays a recorded trace of the original design, compares `c_valid` on every cycle
@@ -784,7 +785,7 @@ Cost: OK
 Duration: 213.7s
 ```
 
-With rtlscout 0.2.0 and the suite-v1 vectors this reproduces the seed campaigns' number: 6,782 checks pass and the
+With rtlscout 0.2.0 and the suite's vectors this reproduces the seed campaigns' number: 6,782 checks pass and the
 cost is 4,624,408.88.
 
 **The row.** Per entry the table reports the mean and the sample standard deviation (n - 1 in the denominator)
@@ -933,13 +934,13 @@ recorded 3, already recorded 0, skipped 0, refused 0
 What marks them:
 
 - `"suite": "pre-v1"`, `"origin": "seed"`, `"rtlscout": "pre-0.2.0 (unpackaged, 2026-07)"` in every record. The
-  page labels their rows "measured before suite-v1", and campaigns never count them towards `repeats`.
+  page labels their rows "measured before <current suite>", and campaigns never count them towards `repeats`.
 - The old run directories do not record the reasoning effort. The split of the two Kimi K3 entries by launch
   date comes from the campaign notes, and those six records say so: `"reasoning_effort_source": "campaign notes"`.
 - They have no per-evaluation token counts (`tok_in`, `tok_out` are `null`). Their `t_min` was reconstructed at
   recording time from the modification time of each `eval_<n>/result.json` in the old run directory ("timed" in
   the output above); the raw directories are not kept, so this could not be done later.
-- They were checked against the benchmark's original 830-cycle vector file. `suite-v1` ships 6,782 cycles, of
+- They were checked against the benchmark's original 830-cycle vector file. the suite ships 6,782 cycles, of
   which the first 830 are identical.
 
 Adopting other run directories works the same way with `--origin manual`; `--suite` then defaults to the
@@ -1022,7 +1023,7 @@ python -m rtlscout_bench.campaign --baselines-only
 
 ```text
 rtlscout 0.2.0
-suite suite-v1 · rtlscout 0.2.0+git.f4152b6 · spire-hdl 0.4.0 · parallel 2
+suite suite-v2 · rtlscout 0.2.0+git.ce38834 · spire-hdl 0.4.0 · parallel 2
   tpu-adp / glm-5.2                        0 of 3 runs done, 3 to launch
   tpu-adp / kimi-k3                        0 of 3 runs done, 3 to launch
   tpu-adp / nemotron-3-ultra               0 of 3 runs done, 3 to launch
@@ -1089,7 +1090,7 @@ A new model additionally needs an entry in `campaign_matrix.yaml`, as a pull req
    ```
 
    All twelve seed designs were re-evaluated this way with rtlscout 0.2.0: each passes the 6,782 checks of the
-   suite-v1 testbench and reproduces its recorded cost.
+   suite's testbench and reproduces its recorded cost.
 
 3. The pull request is merged and the maintainer publishes: `python -m rtlscout_bench.publish` shows the table
    before and after, and bumps the pointer.
