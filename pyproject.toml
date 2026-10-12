@@ -11,7 +11,7 @@ dependencies = [
     # version (docs/manual.md,
     # "Upgrading rtlscout"). A direct reference is fine here: this project is installed from its checkout and is
     # never uploaded to a package index.
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@f4152b6f7a50d5d345543f46e01819118c32cbca",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@ce38834e90fdb0611e8fd398b7e8497599702a9b",
     "pyyaml>=6.0",
 ]
 

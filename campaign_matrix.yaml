@@ -49,11 +49,14 @@ defaults:
   reasoning_effort: default            # provider default; else low | medium | high -> RTLSCOUT_REASONING_EFFORT
   agent_backend: react                 # the built-in loop (the only backend the tooling accepts for now)
   flags: []                            # agent-side flags, added to the task's flags
+  env:                                 # run conditions for every entry (an entry's own env adds to these)
+    RTLSCOUT_OPENROUTER_MAX_TOKENS: "65536"   # cap on one completion, reasoning included: bounds a runaway step
   enabled: true
 
 entries:                               # open-weights models only, for now
   - id: glm-5.2
     model: openrouter:z-ai/glm-5.2
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
   - id: kimi-k3
     model: openrouter:moonshotai/kimi-k3
   - id: nemotron-3-ultra
@@ -63,13 +66,16 @@ entries:                               # open-weights models only, for now
     reasoning_effort: high
   - id: glm-5.3-flash
     model: openrouter:z-ai/glm-5.3-flash
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
   - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
     model: openrouter:z-ai/glm-5.2
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
     language: spirehdl
     flags: [--fsm-optimize]
     enabled: false
   - id: glm-5.2-spire-autoconfig
     model: openrouter:z-ai/glm-5.2
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
     language: spirehdl
     flags: [--fsm-optimize, --arith-autoconfig]
     enabled: false

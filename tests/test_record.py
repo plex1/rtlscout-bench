@@ -229,6 +229,20 @@ def test_runs_of_a_new_suite_supersede_the_seed_runs_of_the_entry(bench, tmp_pat
     assert lb["exclude"] == [dict(entry="model-a", run="20260101_000000", reason="superseded by suite-t1 runs")]
 
 
+def test_runs_under_changed_conditions_supersede_the_entry_s_earlier_runs(bench, tmp_path, capsys):
+    adopt([make_run(tmp_path / "old", "20260301_101500")])
+    raw = Path("campaign_matrix.yaml").read_text()
+    Path("campaign_matrix.yaml").write_text(raw.replace("defaults:\n", "defaults:\n  env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}\n"))
+    adopt([make_run(tmp_path / "new", "20260301_101502")])
+    out = capsys.readouterr().out
+    assert "superseded by runs under the entry's current conditions (env changed)" in out
+    lb = load_leaderboard(Path("data"), "demo-adp")
+    assert lb["runs"] == {"model-a": ["20260301_101502"]}
+    assert lb["exclude"] == [dict(entry="model-a", run="20260301_101500",
+                                  reason="superseded by runs under the entry's current conditions (env changed)")]
+    assert _load(run_id="20260301_101502")["env"] == {"RTLSCOUT_OPENROUTER_PROVIDERS": "z-ai"}
+
+
 def test_run_that_ended_early_is_recorded_but_not_selected(bench, tmp_path):
     adopt([make_run(tmp_path / "raw", error="provider returned 503")])
     lb = load_leaderboard(Path("data"), "demo-adp")

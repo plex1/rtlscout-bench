@@ -336,8 +336,11 @@ entries:
 | `reasoning_effort` | `default` | `default` leaves the provider's default; `low`, `medium`, `high` set `RTLSCOUT_REASONING_EFFORT` |
 | `agent_backend` | `react` | rtlscout's built-in loop; the only value accepted for now |
 | `flags` | `[]` | agent-side rtlscout flags, e.g. `--fsm-optimize`; appended to the task's flags. An entry's own list replaces the default list |
+| `env` | `{RTLSCOUT_OPENROUTER_MAX_TOKENS: "65536"}` | variables of the run, written into every record as conditions. An entry's own variables are added to the default ones (unlike `flags`, which replace them) |
 | `tasks` | `[tpu-adp]` | the tasks this entry runs |
 | `enabled` | `true` | `false` keeps the entry in the file without running it |
+
+**Provider pin and completion cap.** Two of the variables are run conditions of every OpenRouter entry. `RTLSCOUT_OPENROUTER_PROVIDERS` names the upstream providers OpenRouter may use, in order, with no fallback to others; the shipped matrix pins the GLM entries to `z-ai`, the vendor's own endpoint, after a campaign in which OpenRouter's per-request routing sent whole runs to a deployment that dropped tool-call arguments. `RTLSCOUT_OPENROUTER_MAX_TOKENS` caps one completion, reasoning included; the shipped default of 65,536 bounds a step that reasons without ever producing a tool call (seen at a provider's 131k cap: 35 minutes per step). Both are unset outside a campaign, so a plain `rtlscout` run is unaffected. Each record tallies which providers served the run and how its LLM calls ended (`llm_providers`, `finish_reasons`), so a result can be traced to a deployment.
 
 **The same model twice.** Two rows of one model are two entries with different ids, as `kimi-k3` and
 `kimi-k3-high` above. Their runs live in different directories and never mix. The page derives the row label
@@ -564,6 +567,9 @@ page was built from. A dry run does steps 1, 2 and 4 on a temporary copy of `dat
 
 When reruns of an entry are recorded, that entry's seed runs are superseded automatically: the row switches from
 the seed runs to the new ones in one step and appears here as `~ row changed ... (pre-v1) -> ... (suite-v1)`.
+The same happens when an entry's conditions change (a provider pin, a step budget): its earlier runs are excluded
+with the reason `superseded by runs under the entry's current conditions (env changed)`, one row never mixing
+conditions.
 
 **Why step 5 exists.** It is the moment numbers become public, and a campaign can produce a bad result: a run
 cut short by a provider outage, a crashed run, a model that edited the design before measuring the starting
@@ -863,6 +869,7 @@ could need out of them at recording time.
 | provenance | `schema`, `suite`, `origin` (`campaign`, `seed`, `manual`), `status` (`completed`, `ended-early`), `rtlscout`, `spire_hdl`, `bench_commit`, `campaign` |
 | conditions | `task`, `benchmark`, `language`, `cost_metric`, `target_delay`, `technology`, `entry`, `model`, `open_weights`, `reasoning_effort`, `agent_backend`, `max_steps`, `flags`, `env` |
 | result | `started`, `best` (cost, area, delay, the evaluation and step it appeared at, the file), `n_evals`, `n_failed`, `steps_used`, `runtime_min`, `tokens`, `usd`, `price_per_mtok` |
+| per run, rtlscout ce38834 and later | `llm_providers`, `finish_reasons`: how many LLM calls each upstream provider served and how they ended (`tool_calls`, `stop`, `length` = hit the completion cap) |
 | per evaluation (`evals`) | `e` number, `s` agent step, `ok`, `c` cost, `area`, `delay`, `power`, `td` target delay, `ctx` context-window tokens, `t_min` minutes since run start, `tok_in` / `tok_out` cumulative tokens |
 
 The field-by-field description with types is in `data/README.md`. Conditions and versions of campaign runs are
@@ -976,7 +983,11 @@ directory.
    python -m rtlscout_bench.campaign --baselines-only --task <task-id>
    ```
 
-5. Bump the suite: set `suite:` in the matrix to the new tag, commit, and tag that commit.
+5. Check the task text: cite context files by the name the agent sees (`starting_point.v`, never
+   `context/starting_point.v`; rtlscout copies `context/` flat into the workspace). `tests/test_benchmarks.py`
+   fails on the old form; every run before 2026-10-12 lost one step to it.
+
+6. Bump the suite: set `suite:` in the matrix to the new tag, commit, and tag that commit.
 
    <!-- TO-VERIFY -->
    ```bash
@@ -998,7 +1009,7 @@ The rtlscout version is pinned by git commit (or tag) in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@f4152b6f7a50d5d345543f46e01819118c32cbca",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@ce38834e90fdb0611e8fd398b7e8497599702a9b",
 ```
 
 To move the leaderboard to a new version, change the commit or tag, commit, and reinstall inside the container:

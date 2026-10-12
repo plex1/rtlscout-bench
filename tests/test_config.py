@@ -36,6 +36,10 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert all(e.max_steps == 60 and e.repeats == 3 and e.agent_backend == "react" for e in m.entries)
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
+    cap = ("RTLSCOUT_OPENROUTER_MAX_TOKENS", "65536")
+    assert all(cap in e.env for e in m.entries), "every OpenRouter entry runs under the completion cap"
+    pinned = {e.id for e in m.entries if ("RTLSCOUT_OPENROUTER_PROVIDERS", "z-ai") in e.env}
+    assert pinned == {e.id for e in m.entries if e.model.startswith("openrouter:z-ai/")}, "GLM entries pinned to Z.AI"
     assert m.tasks["tpu-adp"].flags == ("--skip-cec",) and m.tasks["qr-adp-fast"].heavy
     n_tasks = len(m.enabled_tasks())
     assert len(m.jobs()) == n_tasks * len(enabled) and sum(e.repeats for _, e in m.jobs()) == 3 * n_tasks * len(enabled)
@@ -59,6 +63,21 @@ def test_conditions_carry_task_and_entry_settings(bench):
                      reasoning_effort="default", agent_backend="react", max_steps=10,
                      flags=["--skip-cec", "--fsm-optimize"], env={})
     assert set(c) == set(config.CONDITION_FIELDS)
+
+
+def test_entry_env_adds_to_defaults_env_and_is_a_condition(bench):
+    def mutate(r):
+        r["defaults"]["env"] = {"RTLSCOUT_OPENROUTER_MAX_TOKENS": 65536}
+        r["entries"][1]["env"] = {"RTLSCOUT_OPENROUTER_PROVIDERS": "z-ai"}
+        r["tasks"]["demo-adp"]["env"] = {"RTLSCOUT_ADP_FAST_TIMEOUT": "9"}
+    m = _parse(bench, mutate)
+    assert m.entry("model-a").env == (("RTLSCOUT_OPENROUTER_MAX_TOKENS", "65536"),)
+    assert m.entry("model-a-high").env == (("RTLSCOUT_OPENROUTER_MAX_TOKENS", "65536"),
+                                           ("RTLSCOUT_OPENROUTER_PROVIDERS", "z-ai"))
+    c = m.conditions(m.tasks["demo-adp"], m.entry("model-a-high"))
+    assert c["env"] == {"RTLSCOUT_ADP_FAST_TIMEOUT": "9", "RTLSCOUT_OPENROUTER_MAX_TOKENS": "65536",
+                        "RTLSCOUT_OPENROUTER_PROVIDERS": "z-ai"}
+    assert "env: must be a mapping" in _problems(bench, lambda r: r["entries"][0].update(env="z-ai"))
 
 
 @pytest.mark.parametrize("mutate, expected", [

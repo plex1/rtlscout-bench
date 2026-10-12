@@ -51,6 +51,23 @@ def test_environment_sets_effort_and_never_inherits_it(bench, monkeypatch):
     assert campaign.run_env(m.tasks["demo-heavy"], None)["RTLSCOUT_ADP_FAST_TIMEOUT"] == "60"
 
 
+def test_environment_carries_the_entry_variables_and_drops_ambient_ones(bench, monkeypatch):
+    import yaml
+    from conftest import MATRIX
+    raw = yaml.safe_load(MATRIX)
+    raw["defaults"]["env"] = {"RTLSCOUT_OPENROUTER_MAX_TOKENS": "65536"}
+    raw["entries"][0]["env"] = {"RTLSCOUT_OPENROUTER_PROVIDERS": "z-ai"}
+    Path("campaign_matrix.yaml").write_text(yaml.safe_dump(raw))
+    monkeypatch.setenv("RTLSCOUT_OPENROUTER_PROVIDERS", "ambient")
+    monkeypatch.setenv("RTLSCOUT_OPENROUTER_MAX_TOKENS", "1")
+    m = load_matrix()
+    env = campaign.run_env(m.tasks["demo-adp"], m.entry("model-a"))
+    assert env["RTLSCOUT_OPENROUTER_PROVIDERS"] == "z-ai" and env["RTLSCOUT_OPENROUTER_MAX_TOKENS"] == "65536"
+    env = campaign.run_env(m.tasks["demo-adp"], m.entry("model-a-high"))
+    assert "RTLSCOUT_OPENROUTER_PROVIDERS" not in env and env["RTLSCOUT_OPENROUTER_MAX_TOKENS"] == "65536"
+    assert "RTLSCOUT_OPENROUTER_PROVIDERS" not in campaign.run_env(m.tasks["demo-adp"], None)
+
+
 def test_parse_eval_json_skips_header_lines():
     text = "Workdir:  /tmp/x (sandbox)\nMetric:   area\n\n{\n  \"cost_value\": 12.5,\n  \"metrics\": {\"area\": 1}\n}\n"
     assert campaign.parse_eval_json(text) == {"cost_value": 12.5, "metrics": {"area": 1}}

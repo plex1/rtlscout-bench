@@ -107,13 +107,21 @@ def baseline_cmd(matrix: Matrix, task: Task, language: str) -> list[str] | None:
         + [f for f in task.flags if f.startswith("--skip")] + ["--json"]
 
 
+# Variables that are run conditions: a child process gets them from the matrix only, never from the caller's shell.
+CONDITION_VARS = ("RTLSCOUT_REASONING_EFFORT", "RTLSCOUT_OPENROUTER_PROVIDERS", "RTLSCOUT_OPENROUTER_MAX_TOKENS")
+
+
 def run_env(task: Task, entry: Entry | None) -> dict[str, str]:
-    """Environment of a child process: the task's variables, and the entry's reasoning effort and nothing else's."""
+    """Environment of a child process: the task's variables, the entry's variables and reasoning effort, nothing
+    else's."""
     env = dict(os.environ)
-    env.pop("RTLSCOUT_REASONING_EFFORT", None)      # an ambient value must not leak into 'default' entries
+    for var in CONDITION_VARS:                       # an ambient value must not leak into a run
+        env.pop(var, None)
     env.update(dict(task.env))
-    if entry is not None and entry.reasoning_effort != "default":
-        env["RTLSCOUT_REASONING_EFFORT"] = entry.reasoning_effort
+    if entry is not None:
+        env.update(dict(entry.env))
+        if entry.reasoning_effort != "default":
+            env["RTLSCOUT_REASONING_EFFORT"] = entry.reasoning_effort
     return env
 
 

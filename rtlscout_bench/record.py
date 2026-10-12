@@ -260,6 +260,9 @@ def build_record(run_dir: Path, cond: dict, prov: dict, models: dict) -> dict:
                n_failed=sum(1 for e in evals if not e["ok"]), steps_used=res.get("num_steps"),
                runtime_min=_r((res.get("duration_s") or 0) / 60, 1), tokens=tokens, usd=_r(usd, 2),
                price_per_mtok=[prices[0], prices[1]] if prices else None)
+    for key in ("llm_providers", "finish_reasons"):     # per-run tallies, written by rtlscout >= ce38834
+        if isinstance(res.get(key), dict):
+            rec[key] = res[key]
     if prices and (tokens["cache_w"] or tokens["cache_r"]):
         rec["price_cache_per_mtok"] = [prices[2], prices[3]]
     if res.get("error"):
@@ -384,8 +387,9 @@ def include_run(lb: dict, entry: str, run_id: str) -> None:
 def select_run(data: Path, lb: dict, rec: dict, run_id: str) -> list[str]:
     """Add a freshly recorded run to the leaderboard selection. Returns notes about what else changed.
 
-    A run that ended early is recorded but listed under ``exclude`` with the reason. Runs of an earlier suite that
-    the entry still had selected (the seed runs, typically) are superseded: one row never mixes suites.
+    A run that ended early is recorded but listed under ``exclude`` with the reason. Runs the entry still had
+    selected from an earlier suite (the seed runs, typically) or under other conditions (before a provider pin,
+    say) are superseded: one row never mixes suites or conditions.
     """
     notes = []
     entry = rec["entry"]
@@ -394,10 +398,18 @@ def select_run(data: Path, lb: dict, rec: dict, run_id: str) -> list[str]:
         return [f"{entry}/{run_id} ended early and is listed under exclude"]
     for old in list(lb["runs"].get(entry, [])):
         old_path = run_path(data, rec["task"], entry, old) / "record.json"
-        old_suite = _read_json(old_path).get("suite") if old_path.is_file() else None
-        if old != run_id and old_suite != rec["suite"]:
-            exclude_run(lb, entry, old, f"superseded by {rec['suite']} runs")
-            notes.append(f"{entry}/{old} ({old_suite}) superseded by {rec['suite']} runs")
+        old_rec = _read_json(old_path) if old_path.is_file() else {}
+        if old == run_id:
+            continue
+        if old_rec.get("suite") != rec["suite"]:
+            reason = f"superseded by {rec['suite']} runs"
+        elif conditions_of(old_rec) != conditions_of(rec):
+            changed = sorted(k for k in CONDITION_FIELDS if old_rec.get(k) != rec.get(k))
+            reason = f"superseded by runs under the entry's current conditions ({', '.join(changed)} changed)"
+        else:
+            continue
+        exclude_run(lb, entry, old, reason)
+        notes.append(f"{entry}/{old} ({old_rec.get('suite')}) {reason}")
     include_run(lb, entry, run_id)
     return notes
 

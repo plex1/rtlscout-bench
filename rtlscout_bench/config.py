@@ -35,7 +35,7 @@ _ID_RE = re.compile(r"^[a-z0-9][a-z0-9._-]*$")
 _TASK_KEYS = {"benchmark", "cost_metric", "target_delay", "technology", "energy_exp", "flags", "env", "heavy",
               "enabled"}
 _ENTRY_KEYS = {"id", "model", "language", "repeats", "max_steps", "reasoning_effort", "agent_backend", "flags",
-               "tasks", "enabled"}
+               "env", "tasks", "enabled"}
 _DEFAULT_KEYS = _ENTRY_KEYS - {"id", "model"}
 _TOP_KEYS = {"suite", "policy", "tasks", "defaults", "entries", "benchmarks_root"}
 
@@ -76,6 +76,7 @@ class Entry:
     reasoning_effort: str = "default"
     agent_backend: str = "react"
     flags: tuple[str, ...] = ()
+    env: tuple[tuple[str, str], ...] = ()    # run conditions of the entry, e.g. the OpenRouter provider pin
     tasks: tuple[str, ...] = ()
     enabled: bool = True
 
@@ -123,7 +124,7 @@ class Matrix:
                     cost_metric=task.cost_metric, target_delay=task.target_delay, technology=task.technology or "asap7",
                     entry=entry.id, model=entry.model, reasoning_effort=entry.reasoning_effort,
                     agent_backend=entry.agent_backend, max_steps=entry.max_steps,
-                    flags=list(task.flags) + list(entry.flags), env=dict(task.env))
+                    flags=list(task.flags) + list(entry.flags), env={**dict(task.env), **dict(entry.env)})
 
 
 # Fields that must agree for two runs to share a leaderboard row (and for a recorded run to count towards an
@@ -289,9 +290,17 @@ def parse_matrix(raw, path: Path) -> Matrix:
         # like every other field, an entry's own flags replace defaults.flags (they are not concatenated)
         flags = (_check_flags(where, e["flags"], problems, scoring_allowed=False) if "flags" in e
                  else _check_flags("defaults", defaults.get("flags"), [], scoring_allowed=False))
+        # env is the exception: an entry's variables are added to defaults.env, variable by variable
+        env = {}
+        for src, part in (("defaults", defaults.get("env") or {}), (where, e.get("env") or {})):
+            if not isinstance(part, dict) or not all(isinstance(k, str) for k in part):
+                problems.append(f"{src}.env: must be a mapping of variable name -> value")
+            else:
+                env.update(part)
         entries.append(Entry(
             id=eid, model=model, language=language, repeats=ints["repeats"], max_steps=ints["max_steps"],
             reasoning_effort=effort, agent_backend=backend, flags=flags,
+            env=tuple(sorted((k, str(v)) for k, v in env.items())),
             tasks=tuple(t for t in etasks if t in tasks), enabled=merged.get("enabled", True) is not False))
     _check_flags("defaults", defaults.get("flags"), problems, scoring_allowed=False)
 
