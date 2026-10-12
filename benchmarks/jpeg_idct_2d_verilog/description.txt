@@ -33,7 +33,7 @@ position) and must match the expected output at that position. The stream of a
 block overlaps the next block's input beats (the transpose double-buffers one
 full block).
 
-A working starting point is provided: `context/starting_point.v` contains the
+A working starting point is provided: `starting_point.v` contains the
 ORIGINAL core_jpeg modules (Apache 2.0), unmodified, under a thin composition
 top. It passes all golden vectors (they were generated from it — the original
 RTL is the correctness oracle). Study it, then optimize while preserving its

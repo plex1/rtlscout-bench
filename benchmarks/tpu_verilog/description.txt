@@ -31,7 +31,7 @@ Ports:
   a_valid, a_data[63:0]
   c_valid, c_data[255:0]
 
-A working starting point is provided: `context/starting_point.v` is the
+A working starting point is provided: `starting_point.v` is the
 original logikbench RTL (tpu_pe / tpu_array / tpu: PE mesh, per-row input
 skew, per-column output de-skew, valid pipeline). It passes every cycle of the golden
 trace in `vectors.dat` (directed zero/identity/extreme tiles, random tiles,
