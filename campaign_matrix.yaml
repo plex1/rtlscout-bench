@@ -27,7 +27,7 @@ tasks:
   fpmul-adp:
     benchmark: fpmul_f16                   # -> benchmarks/fpmul_f16_verilog (Verilog only)
     cost_metric: area_delay_product
-    flags: []                          # combinational, with a golden reference: the equivalence check stays on
+    flags: [--skip-cec]                # like the other tasks: the testbench decides correctness (golden/ is provenance)
   qr-adp-fast:                         # a different metric for a heavy design
     benchmark: qr
     cost_metric: area_delay_product_fast

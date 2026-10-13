@@ -5,7 +5,9 @@ BSD-3-Clause-Clear). The golden reference is rtlscout's Spire HDL multiplier com
 the same reference and enumerates about 18.9 million operand pairs, so there is no vector file.
 
 `context/starting_point.v` was written for this suite: a plain Verilog implementation of the same arithmetic, checked
-to be formally equivalent to the golden reference (yosys-abc cec, run by every evaluation) and to pass the testbench.
+once to be formally equivalent to the golden reference (yosys-abc cec) and to pass the testbench. The task runs with
+`--skip-cec` like the other three (since 2026-10-13): the first campaign had kept the check on, and its 120 s ABC budget
+rejected designs that restructure the significand multiplier although they passed all 18.9 M vectors.
 
 The starting point is kept under 5,000 characters, rtlscout's cap for a `read_file` call without `offset`/`limit`, so
 an agent sees the whole file in one read. (The first version had 6,590 characters; the logic is unchanged.)

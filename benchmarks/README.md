@@ -8,7 +8,7 @@ result on one is checked against exactly the same behaviour as a result on the o
 | `tpu_verilog/` | `context/starting_point.v`, the upstream RTL | every Verilog entry of the `tpu-*` tasks |
 | `jpeg_idct_2d_verilog/` | `context/starting_point.v`, the upstream core_jpeg RTL (full 8x8 2-D IDCT: row pass, double-buffered corner-turn, column pass) | every Verilog entry of the `jpeg-*` tasks |
 | `pdpu_dot16_pipe_verilog/` | `context/starting_point.v`, the upstream PDPU 16-lane posit dot-product unit, 5-stage pipeline | every Verilog entry of the `pdpu-*` tasks |
-| `fpmul_f16_verilog/` | `context/starting_point.v`, a plain IEEE binary16 multiplier with subnormals, written for this suite; every evaluation also checks formal equivalence with the reference | every Verilog entry of the `fpmul-*` tasks |
+| `fpmul_f16_verilog/` | `context/starting_point.v`, a plain IEEE binary16 multiplier with subnormals, written for this suite; `golden/design.v` is kept as provenance (the task runs with `--skip-cec`) | every Verilog entry of the `fpmul-*` tasks |
 | `tpu_spire/` | `context/starting_point.py`, a Spire HDL port of the same design | every Spire HDL entry of the `tpu-*` tasks |
 
 The design is the `tpu` benchmark of [LogikBench](https://github.com/zeroasiccorp/logikbench) (commit `e8c7c43`, MIT):
