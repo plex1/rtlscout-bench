@@ -1010,7 +1010,7 @@ The rtlscout version is pinned by git commit (or tag) in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@ce38834e90fdb0611e8fd398b7e8497599702a9b",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@6c6eac714de436e5215330216af381a70dd2dfca",
 ```
 
 To move the leaderboard to a new version, change the commit or tag, commit, and reinstall inside the container:
