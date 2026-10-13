@@ -37,7 +37,7 @@ def test_record_of_a_run_without_timing_fields(bench, tmp_path):
     assert rec["flags"] == ["--skip-cec"] and rec["env"] == {}
     assert rec["technology"] == "asap7" and rec["target_delay"] is None
     assert rec["started"] == "2026-03-01T10:15"
-    assert rec["best"] == dict(cost=800.0, area=40.0, delay=20.0, eval=3, step=6, file="design_3.sv")
+    assert rec["best"] == dict(cost=800.0, area=40.0, delay=20.0, eval=3, step=6, file="design_3.sv", td=500.0)
     assert (rec["n_evals"], rec["n_failed"], rec["steps_used"], rec["runtime_min"]) == (4, 1, 10, 10.0)
     assert rec["tokens"] == dict(inp=200_000, out=10_000, cache_w=0, cache_r=0)
     assert rec["usd"] == pytest.approx(0.24) and rec["price_per_mtok"] == [1.0, 4.0]      # 0.2 M * $1 + 0.01 M * $4

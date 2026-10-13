@@ -232,7 +232,8 @@ def build_record(run_dir: Path, cond: dict, prov: dict, models: dict) -> dict:
         ev = next((e for e in evals_raw if e.get("eval_index") == meta.get("eval_index")), {})
         metrics = ev.get("metrics") or res.get("best_metrics") or {}
         best = dict(cost=_r(meta["best_cost"], 2), area=_r(metrics.get("area"), 2), delay=_r(metrics.get("delay"), 2),
-                    eval=meta.get("eval_index"), step=meta.get("step_index"), file=meta.get("design_file"))
+                    eval=meta.get("eval_index"), step=meta.get("step_index"), file=meta.get("design_file"),
+                    td=metrics.get("target_delay", ev.get("target_delay")))   # the agent's target_delay, needed to reproduce
     elif res.get("passed"):
         raise RecordError(f"{run_dir}: result.json reports a passing design but best_design/ is missing")
 

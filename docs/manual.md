@@ -1076,6 +1076,9 @@ A new model additionally needs an entry in `campaign_matrix.yaml`, as a pull req
    python -m rtlscout.run_eval data/runs/tpu-adp/<entry>/<run-id>/best_design/<best.file> --benchmark benchmarks/tpu_verilog --cost-metric area_delay_product --skip-cec
    ```
 
+   When the record's `best.td` is not null the agent evaluated that design with its own `target_delay`; add
+   `--target-delay <best.td>` or the cost will not reproduce (the synthesis constraint changes area and delay).
+
    For the seed run `glm-5.2/20260727_085945` (`best.file` is `design_csa_nr.sv`, `best.cost` is 2755208.05) the
    result block reads:
 
