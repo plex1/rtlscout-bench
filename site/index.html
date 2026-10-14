@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RTLScout Bench</title>
-<meta name="description" content="RTLScout Bench. How well do LLM agents optimize RTL? A leaderboard: best verified area-delay product reached per model on the same starting design, with every run, its cost and its transcript.">
+<meta name="description" content="RTLScout Bench. How well do LLM agents optimize RTL? A leaderboard: best verified area-delay product reached per model on a Verilog starting design, with every run, its cost and its transcript.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=IBM+Plex+Mono:wght@400;500&display=swap">
@@ -76,6 +76,10 @@ p{margin:0}
 nav{display:flex;gap:4px;flex-wrap:wrap;margin-left:auto}
 nav a{padding:6px 10px;border-radius:6px;color:var(--ink-2);font-size:.92rem;border:0}
 nav a:hover{background:var(--surface-2);color:var(--ink)}
+.repos{display:flex;gap:2px;align-items:center;margin-left:auto;padding-left:10px;border-left:1px solid var(--line-soft)}
+nav:not([hidden])+.repos{margin-left:0}
+.repos a{display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border-radius:6px;color:var(--ink-2);font-size:.88rem;font-family:"IBM Plex Mono",monospace;border:0;white-space:nowrap}
+.repos a:hover{background:var(--surface-2);color:var(--ink)}
 /* hero */
 .hero{padding-block:44px 28px}
 .hero .eyebrow{font-family:"IBM Plex Mono",monospace;font-size:.78rem;letter-spacing:.08em;text-transform:uppercase;color:var(--accent-ink)}
@@ -88,7 +92,7 @@ nav a:hover{background:var(--surface-2);color:var(--ink)}
 .stat i{display:block;font-style:normal;font-size:.8rem;color:var(--ink-2);margin-top:2px}
 .tasks{margin-top:22px}
 /* sections */
-section{padding-block:36px;border-top:1px solid var(--line-soft)}
+section{padding-block:36px;border-top:1px solid var(--line-soft);scroll-margin-top:var(--top-h,64px)}
 .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
 .sec-head p{color:var(--ink-2);max-width:70ch;margin-top:6px}
 .seg{display:inline-flex;border:1px solid var(--line);border-radius:7px;overflow:hidden;background:var(--surface);flex-wrap:wrap}
@@ -175,6 +179,10 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <a href="#runs">Runs</a>
     <a href="#method">Method</a>
   </nav>
+  <div class="repos" aria-label="Source code">
+    <a href="https://github.com/huawei-csl/rtlscout" title="The RTL Scout agent on GitHub"><svg class="gh" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>rtlscout</a>
+    <a href="https://github.com/plex1/rtlscout-bench" title="This benchmark on GitHub"><svg class="gh" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>rtlscout-bench</a>
+  </div>
 </div></header>
 
 <main>
@@ -182,7 +190,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="hero-text">
   <div class="eyebrow" id="eyebrow">LLM agents · RTL optimization</div>
   <h1>How far can an LLM push a hardware design?</h1>
-  <p class="lede" id="lede">Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for a fixed number of steps on the same starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified cost the agent reached. Lower is better.</p>
+  <p class="lede" id="lede">Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for a fixed number of steps on a Verilog starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified cost the agent reached. Lower is better.</p>
   <div class="tasks" id="task-wrap" hidden>
     <div class="seg" role="group" aria-label="Task" id="task-seg"></div>
   </div>
@@ -267,13 +275,15 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </main>
 
 <footer><div class="wrap">
-  <span>RTL Scout · <a href="https://github.com/huawei-csl/rtlscout">github.com/huawei-csl/rtlscout</a> · <a href="https://arxiv.org/abs/2606.06530">arXiv 2606.06530</a></span>
+  <span>RTL Scout · <a href="https://github.com/huawei-csl/rtlscout">github.com/huawei-csl/rtlscout</a> · <a href="https://arxiv.org/abs/2606.06530">arXiv 2606.06530</a> · Bench · <a href="https://github.com/plex1/rtlscout-bench">github.com/plex1/rtlscout-bench</a></span>
   <span id="gen"></span>
 </div></footer>
 <div class="tip" id="tip" role="tooltip"></div>
 
 <script src="data.js"></script>
 <script>
+const setTopOffset = () => document.documentElement.style.setProperty('--top-h', (document.querySelector('.top').offsetHeight + 8) + 'px');
+setTopOffset(); addEventListener('resize', setTopOffset);
 (function(){
 const D = window.RTLSCOUT_DATA;
 const $ = id => document.getElementById(id);
@@ -331,7 +341,9 @@ const runLink = run => D.data_url ? `<a href="${esc(D.data_url)}/tree/${esc(Stri
 function renderHero(){
   const R = rows(), all = R.flatMap(r=>r.runs);
   const steps = [...new Set(T.rows.map(r=>r.max_steps))];
-  $('lede').innerHTML = `Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for ${steps.length===1 ? steps[0]+' steps' : 'a fixed number of steps'} on the same starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified ${esc(T.metric_label||'cost')} the agent reached. Lower is better.`;
+  const rowLangs = [...new Set(T.rows.map(r=>r.language))];
+  const lang = rowLangs.length===1 ? (LANG[rowLangs[0]]||rowLangs[0])+' ' : '';
+  $('lede').innerHTML = `Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for ${steps.length===1 ? steps[0]+' steps' : 'a fixed number of steps'} on a ${lang}starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified ${esc(T.metric_label||'cost')} the agent reached. Lower is better.`;
   if(!R.length){ show('stats', false); return; }
   let bestRun = null, bestRow = null;
   R.forEach(r=>r.runs.forEach(x=>{ if(x.best_cost!=null && (!bestRun || x.best_cost<bestRun.best_cost)){ bestRun=x; bestRow=r; } }));
@@ -585,6 +597,8 @@ const sha = s => s ? String(s).slice(0,7) + (/-dirty$/.test(s) ? ' (with uncommi
 if(D.open_weights_only) $('eyebrow').textContent += ' · open-weights models';
 $('gen').textContent = `Built ${String(D.generated||'').replace('T',' ')} from rtlscout-bench ${sha(D.bench_commit)} and rtlscout-bench-data ${sha(D.data_commit)}`;
 renderAll();
+// a page opened with #section: the sections exist only now, so repeat the browser's scroll to the fragment
+if(location.hash && document.querySelector(location.hash)) document.querySelector(location.hash).scrollIntoView();
 })();
 </script>
 </body>
