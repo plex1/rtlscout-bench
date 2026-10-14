@@ -72,7 +72,11 @@ entries:                               # open-weights models only, for now
     model: openrouter:z-ai/glm-5.3-flash
     reasoning_effort: high
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}
-  - id: glm-5.2-nothink                # GLM 5.2 with thinking switched off (its default at Z.AI is max; levels: high, max, off)
+  - id: glm-5.2-high                   # GLM 5.2 reasoning deeply: through OpenRouter the default is light thinking, max runs into the cap
+    model: openrouter:z-ai/glm-5.2
+    reasoning_effort: high
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}
+  - id: glm-5.2-nothink                # GLM 5.2 with thinking switched off (levels at Z.AI: high, max, off)
     model: openrouter:z-ai/glm-5.2
     reasoning_effort: "off"              # quoted: a bare off is a YAML boolean
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}

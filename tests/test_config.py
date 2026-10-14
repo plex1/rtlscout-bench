@@ -37,6 +37,7 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"
     assert m.entry("glm-5.3-flash-high").reasoning_effort == "high"       # the second campaign (2026-10): effort rows
     assert m.entry("glm-5.2-nothink").reasoning_effort == "off" and m.entry("glm-5.2").reasoning_effort == "default"
+    assert m.entry("glm-5.2-high").reasoning_effort == "high"
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "coreweave") in m.entry("deepseek-v4.1-flash").env, "DeepSeek pinned too"
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "xiaomi") in m.entry("mimo-v2.6-flash").env
     assert all(any(k == "RTLSCOUT_OPENROUTER_PROVIDERS" for k, _ in e.env) for e in m.entries

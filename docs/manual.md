@@ -243,6 +243,7 @@ entries
   kimi-k3-high               enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.3-flash              enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.3-flash-high         enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
+  glm-5.2-high               enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.2-nothink            enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort off, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   deepseek-v4.1-flash        enabled   openrouter:deepseek/deepseek-v4.1-flash        verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   mimo-v2.6-flash            enabled   openrouter:xiaomi/mimo-v2.6-flash              verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
@@ -274,6 +275,10 @@ jobs (enabled task x enabled entry)
   jpeg-adp / glm-5.3-flash-high            benchmarks/jpeg_idct_2d_verilog 3 runs
   pdpu-adp / glm-5.3-flash-high            benchmarks/pdpu_dot16_pipe_verilog 3 runs
   fpmul-adp / glm-5.3-flash-high           benchmarks/fpmul_f16_verilog 3 runs
+  tpu-adp / glm-5.2-high                   benchmarks/tpu_verilog       3 runs
+  jpeg-adp / glm-5.2-high                  benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / glm-5.2-high                  benchmarks/pdpu_dot16_pipe_verilog 3 runs
+  fpmul-adp / glm-5.2-high                 benchmarks/fpmul_f16_verilog 3 runs
   tpu-adp / glm-5.2-nothink                benchmarks/tpu_verilog       3 runs
   jpeg-adp / glm-5.2-nothink               benchmarks/jpeg_idct_2d_verilog 3 runs
   pdpu-adp / glm-5.2-nothink               benchmarks/pdpu_dot16_pipe_verilog 3 runs
@@ -287,7 +292,7 @@ jobs (enabled task x enabled entry)
   pdpu-adp / mimo-v2.6-flash               benchmarks/pdpu_dot16_pipe_verilog 3 runs
   fpmul-adp / mimo-v2.6-flash              benchmarks/fpmul_f16_verilog 3 runs
 
-OK: 4 enabled task(s), 9 enabled entries, 108 runs for a full campaign
+OK: 4 enabled task(s), 10 enabled entries, 120 runs for a full campaign
 ```
 
 A mistake is reported with every problem at once and exit status 2. This is what a misspelt reasoning effort and
