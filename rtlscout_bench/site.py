@@ -54,6 +54,10 @@ def _run_json(task_id: str, entry: str, rec: dict) -> dict:
         point = dict(e=e["e"], s=e["s"], c=e["c"], ok=e["ok"], t=e["t_min"])
         if e.get("tok_in") is not None:
             point.update(ti=e["tok_in"], to=e["tok_out"])
+        if e.get("area") is not None and e.get("delay") is not None:    # the design-space chart: area vs. delay
+            point.update(a=e["area"], d=e["delay"])
+            if e.get("td") is not None:
+                point["td"] = e["td"]
         traj.append(point)
     return dict(id=rec["run"], path=f"runs/{task_id}/{entry}/{rec['run']}", started=rec["started"], suite=rec["suite"],
                 origin=rec["origin"], rtlscout=rec["rtlscout"], best_cost=best.get("cost"), best_eval=best.get("eval"),

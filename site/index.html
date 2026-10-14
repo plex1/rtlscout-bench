@@ -153,6 +153,9 @@ svg .mean{stroke:var(--ink);stroke-width:2}
 svg .sdbar{stroke:var(--ink-3);stroke-width:1}
 svg .hit{fill:transparent;cursor:crosshair}
 svg .pareto{stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;opacity:.9}
+svg .iso{stroke:var(--ink-3);stroke-width:1;stroke-dasharray:4 4}
+svg .isolbl{fill:var(--ink-3);font-size:10px}
+svg .start{fill:var(--surface);stroke:var(--ink);stroke-width:2}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:6px 16px 12px;font-size:.82rem;color:var(--ink-2)}
 .legend button{appearance:none;border:0;background:none;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0}
 .legend button[aria-pressed="false"]{opacity:.35}
@@ -185,6 +188,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <a href="#ov-cost" data-view="overall">Cost</a>
     <a href="#leaderboard" data-view="task">Leaderboard</a>
     <a href="#convergence" data-view="task">Convergence</a>
+    <a href="#designs" data-view="task">Designs</a>
     <a href="#cost" data-view="task">Cost</a>
     <a href="#runs" data-view="task">Runs</a>
     <a href="#method" data-view="task">Method</a>
@@ -303,6 +307,23 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   </div>
 </div></section>
 
+<section id="designs"><div class="wrap">
+  <div class="sec-head">
+    <div><h2>Designs</h2><p id="des-desc"></p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Axes">
+        <button aria-pressed="true" data-ax="log">Log-log</button>
+        <button aria-pressed="false" data-ax="lin">Linear</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="chart" id="designs-chart"></div>
+    <div class="legend" id="designs-legend"></div>
+    <div class="cap" id="des-cap"></div>
+  </div>
+</div></section>
+
 <section id="cost"><div class="wrap">
   <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Runtime per run is in the table above.</p></div></div>
   <div class="card" style="margin-top:14px">
@@ -368,7 +389,8 @@ let view = OV ? 'overall' : 'task';                              // the page ope
 let ovMode = 'rank';                                             // 'rank' (mean rank) or 'score' (headroom-normalized)
 let ovX = 'step', ovAgg = 'median';                              // the overall convergence chart: axis and within-task aggregation
 const ovHidden = new Set();
-let convAgg = 'median', convX = 'step';
+let convAgg = 'median', convX = 'step', desAx = 'log';
+const desHidden = new Set();
 const hidden = new Set();
 const tip = $('tip');
 const esc = s => String(s == null ? '' : s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -795,6 +817,68 @@ function renderConv(){
   document.querySelectorAll('#conv-legend button').forEach(bt=>bt.addEventListener('click',()=>{ const id=bt.dataset.id; hidden.has(id)?hidden.delete(id):hidden.add(id); renderConv(); }));
 }
 
+/* ---------- designs: area vs. delay of every passing design ---------- */
+function logTicks(lo, hi){                // 1, 2, 5 per decade inside [lo, hi] (both > 0)
+  const out = [];
+  for(let k=Math.floor(Math.log10(lo)); k<=Math.ceil(Math.log10(hi)); k++) for(const m of [1,2,5]){ const v=m*Math.pow(10,k); if(v>=lo*0.999 && v<=hi*1.001) out.push(v); }
+  return out;
+}
+const fmtNum = v => v>=1000 ? Math.round(v).toLocaleString('en-US') : v>=100 ? v.toFixed(0) : v.toFixed(1);
+function renderDesigns(){
+  const R = rows(), langs = langsWithBase();
+  document.querySelectorAll('.seg button[data-ax]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ax===desAx?'true':'false'));
+  const pts = R.flatMap(r=>r.runs.flatMap(run=>run.traj.filter(p=>p.ok && p.a>0 && p.d>0).map(p=>({r, run, p, best: run.best_eval===p.e}))));
+  const starts = langs.map(l=>T.baselines[l]).filter(b=>b.area>0 && b.delay>0).map(b=>({a:b.area, d:b.delay, cost:b.cost}));
+  show('designs', pts.length>0);
+  if(!pts.length) return;
+  const log = desAx==='log';
+  const as = pts.map(q=>q.p.a).concat(starts.map(s=>s.a)), ds = pts.map(q=>q.p.d).concat(starts.map(s=>s.d));
+  const W=960, ml=70, mr=30, mt=24, mb=44, H=420;
+  let x0, x1, y0, y1, xt, yt, X, Y;
+  if(log){
+    x0=Math.min(...as)/1.15; x1=Math.max(...as)*1.15; y0=Math.min(...ds)/1.15; y1=Math.max(...ds)*1.15;
+    xt=logTicks(x0,x1); yt=logTicks(y0,y1);
+    X = v => ml + (Math.log10(v)-Math.log10(x0))/(Math.log10(x1)-Math.log10(x0))*(W-ml-mr);
+    Y = v => mt + (Math.log10(y1)-Math.log10(v))/(Math.log10(y1)-Math.log10(y0))*(H-mt-mb);
+  } else {
+    const ax=niceTicks(0, Math.max(...as)*1.05, 8), ay=niceTicks(0, Math.max(...ds)*1.05, 6);
+    x0=0; x1=ax.hi; y0=0; y1=ay.hi; xt=ax.ticks; yt=ay.ticks;
+    X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr); Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
+  }
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Area against delay of every passing design'});
+  yt.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,fmtNum(v),{'text-anchor':'end'})); });
+  xt.forEach(v=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt,y2:H-mb,class:'grid'})); svg.appendChild(txt(X(v),H-mb+16,fmtNum(v),{'text-anchor':'middle'})); });
+  svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
+  svg.appendChild(txt(ml,H-6,'area, µm² →')); svg.appendChild(txt(ml-8,mt-8,'delay, ps',{'text-anchor':'end'}));
+  // iso-cost lines: area × delay = the starting design's cost, its half and its quarter
+  const clip = el('clipPath',{id:'des-clip'},[el('rect',{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb})]);
+  svg.appendChild(el('defs',{},[clip]));
+  const s0 = starts[0];
+  if(s0){
+    [[1,'start'],[0.5,'½ start'],[0.25,'¼ start']].forEach(([f,l])=>{
+      const C = s0.cost*f, steps = 120, seg = [];
+      for(let i=0;i<=steps;i++){ const a = log ? x0*Math.pow(x1/x0,i/steps) : x0 + (x1-x0)*i/steps; if(a<=0) continue; const d = C/a; if(d>=y0 && d<=y1) seg.push([X(a),Y(d)]); }
+      if(seg.length>1){ svg.appendChild(el('path',{d:seg.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(''),fill:'none',class:'iso','clip-path':'url(#des-clip)'})); const e=seg[0]; svg.appendChild(txt(e[0]+4,e[1]-4,l,{class:'isolbl'})); }
+    });
+  }
+  // the Pareto front of all passing designs: no other design has both less area and less delay
+  const vis = pts.filter(q=>!desHidden.has(q.r.entry));
+  const front = vis.filter(q=>!vis.some(o=>o!==q && o.p.a<=q.p.a && o.p.d<=q.p.d && (o.p.a<q.p.a || o.p.d<q.p.d))).sort((a,b)=>a.p.a-b.p.a);
+  if(front.length>1) svg.appendChild(el('path',{d:front.map((q,i)=>(i?`V${Y(q.p.d).toFixed(1)}H${X(q.p.a).toFixed(1)}`:`M${X(q.p.a).toFixed(1)} ${Y(q.p.d).toFixed(1)}`)).join(''),fill:'none',class:'pareto'}));
+  vis.forEach(q=>{
+    const c = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:q.best?6:3.5,class:'dot',style:`fill:${colorOf[q.r.entry]};${q.best?'':'opacity:.55;stroke-width:1'}`});
+    const hit = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:9,class:'hit'});
+    bindTip(hit,`<b>${esc(q.r.label)}</b> · ${esc(q.run.id)} · eval ${q.p.e}${q.p.s!=null?` / step ${q.p.s}`:''}${q.best?' · <b>best of the run</b>':''}<br><span class="mono">${q.p.a.toFixed(1)} µm² × ${q.p.d.toFixed(1)} ps = ${fmtC(q.p.c)} ${esc(unit().split(' ')[0])}${q.p.td?` · target ${q.p.td} ps`:''}</span>`);
+    svg.appendChild(c); svg.appendChild(hit);
+  });
+  starts.forEach(s=>{ svg.appendChild(el('rect',{x:X(s.a)-6,y:Y(s.d)-6,width:12,height:12,class:'start'})); svg.appendChild(txt(X(s.a)+9,Y(s.d)+4,'start',{class:'lbl'})); });
+  const host=$('designs-chart'); host.innerHTML=''; host.appendChild(svg);
+  $('des-desc').textContent = `Area against delay of every passing design of the selected runs (${pts.length} designs); the large dots are the best design of each run, the square the starting design.`;
+  $('des-cap').textContent = `Diagonals are iso-cost lines, area × delay equal to the starting design's cost, its half and its quarter. The stepped line is the Pareto front of the designs shown: no other design has both less area and less delay. Designs evaluated under a target delay the agent changed are plotted where synthesis put them; the hover names the target.`;
+  $('designs-legend').innerHTML = R.map(r=>`<button data-id="${esc(r.entry)}" aria-pressed="${desHidden.has(r.entry)?'false':'true'}"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}</button>`).join('');
+  document.querySelectorAll('#designs-legend button').forEach(bt=>bt.addEventListener('click',()=>{ const id=bt.dataset.id; desHidden.has(id)?desHidden.delete(id):desHidden.add(id); renderDesigns(); }));
+}
+
 /* ---------- scatter ---------- */
 function renderScatter(){
   const R = rows().filter(r=>r.agg.usd!=null), langs = langsWithBase();
@@ -868,7 +952,8 @@ function renderAll(){
   const has = rows().length > 0;
   show('content', has); show('empty', !has); $('nav').hidden = !has;
   if(!has){ $('empty-title').textContent = 'No results yet'; $('empty-text').textContent = `No run has been published for ${T.title} yet. Results appear here once the first campaign is recorded and published.`; return; }
-  renderTable(); renderStrip(); renderConv(); renderScatter(); renderRuns(); renderMethod();
+  desHidden.clear();
+  renderTable(); renderStrip(); renderConv(); renderDesigns(); renderScatter(); renderRuns(); renderMethod();
 }
 
 /* ---------- task selector (hidden while there is a single task) ---------- */
@@ -883,6 +968,7 @@ if(D.tasks.length > 1){
 }
 document.querySelectorAll('.seg button[data-ov]').forEach(bt=>bt.addEventListener('click',()=>{ ovMode = bt.dataset.ov; renderOverall(); }));
 document.querySelectorAll('.seg button[data-ovx]').forEach(bt=>bt.addEventListener('click',()=>{ ovX = bt.dataset.ovx; renderOvConv(); }));
+document.querySelectorAll('.seg button[data-ax]').forEach(bt=>bt.addEventListener('click',()=>{ desAx = bt.dataset.ax; renderDesigns(); }));
 document.querySelectorAll('.seg button[data-ovagg]').forEach(bt=>bt.addEventListener('click',()=>{ ovAgg = bt.dataset.ovagg; renderOvConv(); }));
 document.querySelectorAll('.seg button[data-agg]').forEach(bt=>bt.addEventListener('click',()=>{
   convAgg = bt.dataset.agg; document.querySelectorAll('.seg button[data-agg]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();

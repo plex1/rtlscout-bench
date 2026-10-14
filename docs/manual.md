@@ -689,7 +689,9 @@ ce5ae6e Licence: CC BY 4.0
 ## 6. Looking at results locally
 
 **The page.** Build it and open it in a browser. It is a static folder, one HTML page plus one generated data
-file, and works from `file://`:
+file, and works from `file://`. Per task it shows the leaderboard table and every run as a dot, the convergence
+over steps, evaluations or runtime, the design space (area against delay of every passing design, log-log or
+linear, with iso-cost lines and the Pareto front), the result against API cost, every run, and the method notes:
 
 ```bash
 # doctest

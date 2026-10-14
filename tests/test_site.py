@@ -41,6 +41,8 @@ def test_build_writes_the_template_copy_and_one_data_file(bench, tmp_path, capsy
     assert d["suite"] == "suite-t1" and d["open_weights_only"] is True and d["data_url"] is None
     (task,) = d["tasks"]
     assert d["overall"]["tasks"] == [dict(task="demo-adp", title=task["title"])] and d["overall"]["n_complete"] >= 1
+    passing = [p for r in task["rows"] for run in r["runs"] for p in run["traj"] if p["ok"]]
+    assert passing and all("a" in p and "d" in p for p in passing)                     # area and delay per passing evaluation
     assert (task["id"], task["title"], task["metric"], task["unit"], task["scale_exp"]) == \
         ("demo-adp", "Demo design", "area_delay_product", "µm²·ps", 3)
     assert task["baselines"]["verilog"]["cost"] == 1000.0 and task["footnotes"] == ["A general footnote."]
@@ -51,7 +53,7 @@ def test_build_writes_the_template_copy_and_one_data_file(bench, tmp_path, capsy
     run = row["runs"][0]
     assert run["id"] == "20260301_101500" and run["path"] == "runs/demo-adp/model-a/20260301_101500"
     assert run["best_cost"] == 800.0 and run["n_evals"] == 3 and run["n_failed"] == 1 and run["origin"] == "seed"
-    assert run["traj"][0] == dict(e=1, s=2, c=1000.0, ok=True, t=2.5)
+    assert run["traj"][0] == dict(e=1, s=2, c=1000.0, ok=True, t=2.5, a=50.0, d=20.0, td=500.0)
     assert "chat_log" not in json.dumps(d)                 # transcripts stay in the data repo, the page links to them
 
 
@@ -124,6 +126,8 @@ def test_template_has_the_overall_view_with_its_score_switch():
     assert 'id="ov-strip"' in TEMPLATE and 'id="ov-conv"' in TEMPLATE and 'id="ov-scatter"' in TEMPLATE
     assert 'data-ovagg="best"' in TEMPLATE and 'data-ovagg="median"' in TEMPLATE and 'data-ovagg="mean"' in TEMPLATE
     assert "Best run per task" in TEMPLATE and "then the mean over the" in TEMPLATE       # the across-task mean is named
+    # the per-task design chart: area vs. delay of every passing design, log-log or linear
+    assert 'id="designs"' in TEMPLATE and 'data-ax="log"' in TEMPLATE and 'data-ax="lin"' in TEMPLATE and "iso-cost" in TEMPLATE
 
 
 def test_template_has_the_required_states_and_no_dropped_sections():
