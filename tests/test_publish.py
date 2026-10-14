@@ -106,6 +106,19 @@ def test_no_record_publishes_the_data_as_committed_and_records_nothing(repos, ca
     assert _pointer(repos["bench"]) == git(repos["data"], "rev-parse", "HEAD")   # the pointer moved to the data commit
 
 
+def test_a_page_only_change_is_pushed_when_the_data_pointer_is_current(repos, capsys):
+    _run_campaign(capsys)
+    assert publish.main(["-y"]) == 0                                 # data and pointer published
+    capsys.readouterr()
+    (repos["bench"] / "site" / "index.html").write_text((repos["bench"] / "site" / "index.html").read_text() + "<!-- v2 -->\n")
+    git(repos["bench"], "commit", "-q", "-am", "site: tweak")        # a template change, nothing new in data
+    assert publish.main(["--no-record", "-y"]) == 0
+    out = capsys.readouterr().out
+    assert "pushed 1 rtlscout-bench commit(s) to origin main" in out
+    assert git(repos["bench"], "rev-parse", "HEAD") == git(repos["bench"], "rev-parse", "origin/main")
+    assert publish.main(["--no-record", "-y"]) == 0 and "nothing to publish" in capsys.readouterr().out
+
+
 def test_declining_keeps_the_data_commit_but_not_the_page(repos, capsys, monkeypatch):
     _run_campaign(capsys)
     old_pointer = _pointer(repos["bench"])

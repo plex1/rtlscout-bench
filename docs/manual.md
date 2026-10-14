@@ -652,7 +652,8 @@ run no longer counts towards the entry's `repeats`, so the next campaign launche
 
 **Without recording.** `--no-record` skips step 1: the data repository is published as committed and no finished
 run is recorded. This is how a page or text change goes live while a campaign is still running, without its
-first finished runs appearing as partial rows.
+first finished runs appearing as partial rows. When the data pointer is already current, publish pushes the bench
+commits alone (template, texts), since the page is built from both.
 
 **Without pushing.** `--no-push` makes both commits locally and pushes neither repository; push the data
 repository first, then `rtlscout-bench`, when you are ready. `-m "<message>"` sets the data commit message

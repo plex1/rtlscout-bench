@@ -243,6 +243,17 @@ def _publish(args, matrix: Matrix, bench: Path, data: Path, runs_dir: Path, tmp:
         return 0
     head = git(data, "rev-parse", "HEAD")
     if head == published:
+        # The page is built from the bench commit as well (template, texts): a page-only change still has to go up.
+        ahead = git(bench, "rev-list", "--count", "origin/main..HEAD", check=False).strip()
+        if ahead.isdigit() and int(ahead) > 0 and not args.no_push:
+            branch = git(bench, "rev-parse", "--abbrev-ref", "HEAD")
+            if branch != "main":
+                print(f"error: rtlscout-bench is on branch '{branch}'; the page deploys from main.", file=sys.stderr)
+                return 1
+            git(bench, "push", "origin", "HEAD:refs/heads/main")
+            print(f"\nthe data pointer is already at this commit; pushed {ahead} rtlscout-bench commit(s) to origin main "
+                  f"(page template or texts); the Pages workflow rebuilds and deploys the site")
+            return 0
         print("\nnothing to publish: the data pointer is already at this commit")
         return 0
 
