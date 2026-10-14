@@ -152,7 +152,7 @@ svg .dot{fill:var(--accent);stroke:var(--surface);stroke-width:2}
 svg .mean{stroke:var(--ink);stroke-width:2}
 svg .sdbar{stroke:var(--ink-3);stroke-width:1}
 svg .hit{fill:transparent;cursor:crosshair}
-svg .pareto{stroke:var(--ink-2);stroke-width:1.5}
+svg .pareto{stroke:var(--accent);stroke-width:2.5;stroke-linejoin:round;opacity:.9}
 .legend{display:flex;flex-wrap:wrap;gap:6px 16px;padding:6px 16px 12px;font-size:.82rem;color:var(--ink-2)}
 .legend button{appearance:none;border:0;background:none;font:inherit;color:inherit;display:inline-flex;align-items:center;gap:6px;cursor:pointer;padding:2px 0}
 .legend button[aria-pressed="false"]{opacity:.35}
@@ -621,14 +621,17 @@ function renderOvScatter(){
   [[0,'start'],[1,'best known']].forEach(([v,l])=>{ if(v>=y0&&v<=y1){ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'ref'})); svg.appendChild(txt(W-mr,Y(v)-5,l,{'text-anchor':'end'})); } });
   // the Pareto front: entries no other entry beats on both axes (cheaper or equal and at least as good, better in one)
   const front = P.filter(p=>!P.some(q=>q!==p && q.x<=p.x && q.y>=p.y && (q.x<p.x || q.y>p.y))).sort((a,b)=>a.x-b.x);
-  if(front.length>1){
+  P.forEach(p=>{                          // error bars first, so the front and the dots stay on top of them
+    const x=X(p.x), y=Y(p.y);
+    svg.appendChild(el('line',{x1:X(Math.max(0,p.x-p.sx)),x2:X(p.x+p.sx),y1:y,y2:y,class:'sdbar'}));
+    svg.appendChild(el('line',{x1:x,x2:x,y1:Y(Math.min(y1,p.y+p.sy)),y2:Y(Math.max(y0,p.y-p.sy)),class:'sdbar'}));
+  });
+  if(front.length>1){                      // a staircase: horizontal at the best score reachable up to the next entry's cost, then up to it
     const d = front.map((p,i)=> (i ? `H${X(p.x).toFixed(1)}V${Y(p.y).toFixed(1)}` : `M${X(p.x).toFixed(1)} ${Y(p.y).toFixed(1)}`)).join('');
     svg.appendChild(el('path',{d, fill:'none', class:'pareto'}));
   }
   P.forEach(p=>{
     const x=X(p.x), y=Y(p.y);
-    svg.appendChild(el('line',{x1:X(Math.max(0,p.x-p.sx)),x2:X(p.x+p.sx),y1:y,y2:y,class:'sdbar'}));
-    svg.appendChild(el('line',{x1:x,x2:x,y1:Y(Math.min(y1,p.y+p.sy)),y2:Y(Math.max(y0,p.y-p.sy)),class:'sdbar'}));
     svg.appendChild(el('circle',{cx:x,cy:y,r:7,class:'dot',style:`fill:${ovColor[p.r.entry]}`}));
     svg.appendChild(txt(x+11,y+4,p.r.label,{class:'lbl'}));
     const hit = el('circle',{cx:x,cy:y,r:14,class:'hit'});
