@@ -519,7 +519,7 @@ function ovRefRuns(){                    // per task: the starting design and th
 }
 function renderOvStrip(){
   const ref = ovRefRuns(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
-  const W=960, ml=230, mr=40, rowH=34, mt=28, mb=46, H=mt+R.length*rowH+mb;
+  const W=960, ml=230, mr=40, rowH=40, mt=28, mb=46, H=mt+R.length*rowH+mb;
   const pts = R.map(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t).map(run=>({r, t, run, v: ovScore(ref, t.id, run.best_cost)}))));
   const all = pts.flat().map(p=>p.v).concat([0, 1]);
   const ax = niceTicks(Math.min(...all), Math.max(...all), 7), x0=ax.lo, x1=ax.hi;
@@ -534,12 +534,13 @@ function renderOvStrip(){
     svg.appendChild(txt(ml-12,y+4,ps[0].r.label,{class:'lbl','text-anchor':'end'}));
     svg.appendChild(el('line',{x1:X(mean-sd),x2:X(mean+sd),y1:y,y2:y,class:'sdbar'}));
     ps.forEach(p=>{
-      const c = el('circle',{cx:X(p.v),cy:y,r:6,class:'dot',style:`fill:${taskColor[p.t.id]}`});
-      const hit = el('circle',{cx:X(p.v),cy:y,r:12,class:'hit'});
+      const dy = (tasks.indexOf(p.t) - (tasks.length-1)/2) * 6;   // one lane per task within the row: equal scores stay visible
+      const c = el('circle',{cx:X(p.v),cy:y+dy,r:5,class:'dot',style:`fill:${taskColor[p.t.id]}`});
+      const hit = el('circle',{cx:X(p.v),cy:y+dy,r:10,class:'hit'});
       bindTip(hit,`<b>${esc(p.r.label)}</b> · ${esc(p.t.title)} · ${esc(p.run.id)}<br>score <b>${p.v.toFixed(2)}</b> · cost ${p.run.best_cost==null?'no passing design':Number(p.run.best_cost).toLocaleString('en-US',{maximumFractionDigits:0})} vs. start ${Number(ref[p.t.id].start).toLocaleString('en-US',{maximumFractionDigits:0})}`);
       svg.appendChild(c); svg.appendChild(hit);
     });
-    svg.appendChild(el('line',{x1:X(mean),x2:X(mean),y1:y-10,y2:y+10,class:'mean'}));
+    svg.appendChild(el('line',{x1:X(mean),x2:X(mean),y1:y-13,y2:y+13,class:'mean'}));
   });
   const host=$('ov-strip'); host.innerHTML=''; host.appendChild(svg);
   $('ov-strip-legend').innerHTML = tasks.map(t=>`<span><span class="sw" style="background:${taskColor[t.id]}"></span>${esc(t.title)}</span>`).join('');
