@@ -232,7 +232,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="card" style="margin-top:20px">
     <div class="chart" id="ov-strip"></div>
     <div class="legend" id="ov-strip-legend"></div>
-    <div class="cap">Every run as a dot, in headroom-normalized units: 0 is the starting design of its task, 1 the best mean any ranked entry reached on that task. The dot's color is the task. The vertical bar is the mean over all runs of the entry, the thin line their standard deviation. Hover a dot for its run.</div>
+    <div class="cap">Every run as a dot, in headroom-normalized units: 0 is the starting design of its task, 1 the best single run any ranked entry reached on that task, so no dot lies above 1. (The table's score and the charts below use the best row mean as 1 instead.) The dot's color is the task. The vertical bar is the mean over all runs of the entry, the thin line their standard deviation. Hover a dot for its run.</div>
   </div>
 </div></section>
 
@@ -507,8 +507,18 @@ function ovAssignColors(){
 }
 function ovRunsOf(entry, task){ const row = task.rows.find(r=>r.entry===entry); return row ? row.runs : []; }
 
+function ovRefRuns(){                    // per task: the starting design and the best single run among the ranked entries
+  const ref = {}, complete = OV.rows.filter(r=>r.complete);
+  OV_T().forEach(t=>{
+    const lang = (complete[0] && (t.rows.find(r=>r.entry===complete[0].entry)||{}).language) || 'verilog';
+    const start = (t.baselines[lang]||{}).cost;
+    const best = Math.min(...complete.flatMap(r=>ovRunsOf(r.entry,t).map(run=>run.best_cost)).filter(v=>v!=null));
+    ref[t.id] = {start, headroom: start && best < start ? start - best : 0};
+  });
+  return ref;
+}
 function renderOvStrip(){
-  const ref = ovRef(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
+  const ref = ovRefRuns(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
   const W=960, ml=230, mr=40, rowH=34, mt=28, mb=46, H=mt+R.length*rowH+mb;
   const pts = R.map(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t).map(run=>({r, t, run, v: ovScore(ref, t.id, run.best_cost)}))));
   const all = pts.flat().map(p=>p.v).concat([0, 1]);
@@ -516,8 +526,8 @@ function renderOvStrip(){
   const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr);
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Per-run headroom-normalized score by entry'});
   ax.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'grid'})); svg.appendChild(txt(X(v),H-mb+16,v.toFixed(ax.dec),{'text-anchor':'middle'})); });
-  svg.appendChild(txt(ml,H-6,'headroom-normalized score (0 = start, 1 = best known) →'));
-  [[0,'start'],[1,'best known']].forEach(([v,l])=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'ref'})); svg.appendChild(txt(X(v),mt-12,l,{'text-anchor':'middle'})); });
+  svg.appendChild(txt(ml,H-6,'headroom-normalized score (0 = start, 1 = best run known on the task) →'));
+  [[0,'start'],[1,'best run']].forEach(([v,l])=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'ref'})); svg.appendChild(txt(X(v),mt-12,l,{'text-anchor':'middle'})); });
   pts.forEach((ps,i)=>{
     const y = mt + i*rowH + rowH/2, vals = ps.map(p=>p.v);
     const mean = vals.reduce((a,b)=>a+b,0)/vals.length, sd = vals.length>1 ? Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(vals.length-1)) : 0;
