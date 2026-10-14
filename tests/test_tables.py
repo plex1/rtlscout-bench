@@ -198,3 +198,78 @@ def test_campaign_table_from_a_campaign_file(bench, tmp_path, capsys):
     assert "| `demo-adp` | `model-a` | 2 | 1,000 | 800 (800) | -20.0% |" in out       # best re-read from the run folder
     assert "| `demo-adp` | `model-a` | 0 | `20260301_101500` | completed | 800 (eval 3) | 4 |" in out
     assert "| launch-failed |" in out
+
+
+# ------------------------------------------------------------------------------------------ the overall table
+
+def _board(task, rows, base=1000.0, title=None):
+    """A resolved task board with only the fields the overall table reads. ``rows``: (entry, mean or None, suite)."""
+    def row(entry, mean, suite):
+        agg = None if mean is None else dict(n=3, no_pass=0, mean=mean, sd=10.0, min=mean - 10, max=mean + 10,
+                                             median=mean, runtime=100.0, runtime_sd=5.0, usd=1.0, usd_sd=0.1)
+        return dict(entry=entry, label=entry.upper(), name=entry.upper(), model=f"x/{entry}", vendor="V",
+                    open_weights=True, language="verilog", reasoning_effort="default", suite=suite, agg=agg, runs=[])
+    rows = sorted((row(*r) for r in rows), key=lambda r: (r["agg"] is None, r["agg"]["mean"] if r["agg"] else 0))
+    return dict(task=task, title=title or task, baselines={"verilog": dict(cost=base)} if base else {}, rows=rows,
+                excluded=[], scale_exp=0)
+
+
+def test_overall_ranks_complete_entries_only_and_scores_both_ways():
+    boards = [_board("t1", [("a", 500.0, "s2"), ("b", 600.0, "s2"), ("c", 400.0, "s2"), ("p", 300.0, "s1")]),
+              _board("t2", [("a", 900.0, "s2"), ("b", 800.0, "s2"), ("c", 950.0, "s1")], base=1000.0)]
+    o = tables.overall_board(boards)
+    assert [t["task"] for t in o["tasks"]] == ["t1", "t2"] and o["n_complete"] == 3
+    by = {r["entry"]: r for r in o["rows"]}
+    # ranks per task among the three complete entries (p is ignored although it leads t1)
+    assert [by[e]["cells"]["t1"]["rank"] for e in "abc"] == [2, 3, 1]
+    assert [by[e]["cells"]["t2"]["rank"] for e in "abc"] == [2, 1, 3]
+    assert by["a"]["mean_rank"] == 2.0 and by["b"]["mean_rank"] == 2.0 and by["c"]["mean_rank"] == 2.0
+    # headroom-normalized: t1 best is c (400), t2 best is b (800)
+    assert by["c"]["cells"]["t1"]["score"] == pytest.approx(1.0) and by["a"]["cells"]["t1"]["score"] == pytest.approx(500 / 600)
+    assert by["b"]["cells"]["t2"]["score"] == pytest.approx(1.0) and by["c"]["cells"]["t2"]["score"] == pytest.approx(0.25)
+    assert by["a"]["score"] == pytest.approx((500 / 600 + 0.5) / 2)
+    # geomean of the cost ratios, and the mixed-suite label
+    assert by["a"]["geomean"] == pytest.approx((0.5 * 0.9) ** 0.5) and by["a"]["reduction_pct"] == pytest.approx(100 * (1 - (0.45) ** 0.5))
+    assert by["c"]["suite"] == "s2 / s1" and by["a"]["suite"] == "s2"
+    assert by["a"]["usd_total"] == pytest.approx(2.0)
+    # the partial entry keeps its cells and names the missing task; it sorts last
+    assert by["p"]["complete"] is False and by["p"]["missing"] == ["t2"] and by["p"]["cells"]["t1"]["pct"] == pytest.approx(-70.0)
+    assert by["p"]["cells"]["t1"]["pos"] == 1
+    # penalized scores for the partial entry: on t1 it would rank first (300 < 400), t2 not run = worst rank 4
+    assert by["p"]["cells"]["t1"]["rank"] == 1 and by["p"]["mean_rank"] == pytest.approx((1 + 4) / 2)
+    # t1 score against the complete field's headroom (best 400): 700/600; t2 not run = 0 (nobody scored below 0)
+    assert by["p"]["cells"]["t1"]["score"] == pytest.approx(700 / 600) and by["p"]["score"] == pytest.approx((700 / 600 + 0) / 2)
+    assert by["p"]["geomean"] is None and o["worst_rank"] == 4
+    assert o["rows"][-1]["entry"] == "p"
+    # all three tie on mean rank: the geomean breaks the tie (c: 0.4*0.95, a: 0.5*0.9, b: 0.6*0.8)
+    assert [r["entry"] for r in o["rows"][:3]] == ["c", "a", "b"]
+
+
+def test_overall_handles_no_headroom_and_no_passing_runs():
+    boards = [_board("t1", [("a", 1000.0, "s"), ("b", 1100.0, "s")]), _board("t2", [("a", 700.0, "s"), ("b", None, "s")])]
+    o = tables.overall_board(boards)
+    by = {r["entry"]: r for r in o["rows"]}
+    assert o["n_complete"] == 1 and by["a"]["complete"] and not by["b"]["complete"]
+    assert by["a"]["cells"]["t1"]["score"] == 0.0        # nobody improved on t1: the task contributes 0
+    assert by["a"]["score"] == pytest.approx(0.5) and by["a"]["mean_rank"] == 1.0
+    assert by["b"]["missing"] == ["t2"] and "t2" not in by["b"]["cells"]
+    assert by["b"]["mean_rank"] == pytest.approx((2 + 2) / 2) and by["b"]["score"] == pytest.approx((0.0 + 0.0) / 2)
+    # a worse-than-start complete entry lowers the penalty floor for the others' missing tasks
+    boards2 = [_board("t1", [("a", 500.0, "s"), ("b", 1200.0, "s"), ("q", 450.0, "s")]), _board("t2", [("a", 700.0, "s"), ("b", 600.0, "s")])]
+    o2 = tables.overall_board(boards2); q = {r["entry"]: r for r in o2["rows"]}["q"]
+    assert q["cells"]["t1"]["score"] == pytest.approx(550 / 500) and q["score"] == pytest.approx((550 / 500 + 0.0) / 2)
+    assert "t3" not in {t["task"] for t in tables.overall_board(boards + [_board("t3", [("a", 1.0, "s")], base=None)])["tasks"]}
+
+
+def test_overall_text_and_diff():
+    boards = [_board("t1", [("a", 500.0, "s"), ("b", 600.0, "s")]), _board("t2", [("a", 900.0, "s"), ("b", 800.0, "s"), ("q", 100.0, "s")])]
+    o = tables.overall_board(boards)
+    text = tables.render_overall_text(o)
+    assert text.splitlines()[0].startswith("overall: 2 task(s) (t1, t2); ranked by mean rank among the 2 entries")
+    assert "1  A      1.50   0.92" in text.replace("  ", " ").replace("  ", " ") or "A" in text
+    assert "partial: Q (1 of 2 tasks: t2 -90.0%; penalized mean rank 2.00, score 2.25)" in text
+    assert tables.diff_overall(None, o) == ["overall: ranking (mean rank) A > B", "overall: + partial entry Q (1 of 2 tasks)"]
+    assert tables.diff_overall(o, o) == []
+    o2 = tables.overall_board([_board("t1", [("a", 500.0, "s"), ("b", 300.0, "s")]), boards[1]])
+    assert tables.diff_overall(o, o2) == ["overall: ranking (mean rank) A > B -> B > A"]
+

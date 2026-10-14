@@ -125,6 +125,12 @@ td.model{font-weight:500}
 .bar{display:inline-block;height:6px;border-radius:3px;background:var(--accent);vertical-align:middle;margin-right:8px}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;vertical-align:-1px;margin-right:7px}
 tr.top td.model{color:var(--accent-ink)}
+tr.partial td{color:var(--ink-3)}
+tr.partial td.model{font-weight:400}
+tr.partial .delta{opacity:.6}
+.pen{color:var(--ink-3);font-size:.8em;margin-left:3px}
+td.cell .rk{display:inline-block;min-width:1.4em;color:var(--ink-3);font-family:"IBM Plex Mono",monospace}
+th.task{font-size:.72rem}
 details{border-top:1px solid var(--line-soft)}
 details:first-child{border-top:0}
 details summary{cursor:pointer;padding:10px 16px;color:var(--ink-2);font-size:.9rem;list-style:none;display:flex;align-items:center;gap:8px}
@@ -173,11 +179,12 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 <header class="top"><div class="wrap">
   <a class="brand" href="#"><img class="mark light" src="assets/rtlscout-mark-light.png" alt=""><img class="mark dark" src="assets/rtlscout-mark-dark.png" alt="">RTLScout <small>Bench</small></a>
   <nav id="nav">
-    <a href="#leaderboard">Leaderboard</a>
-    <a href="#convergence">Convergence</a>
-    <a href="#cost">Cost</a>
-    <a href="#runs">Runs</a>
-    <a href="#method">Method</a>
+    <a href="#overall" data-view="overall">Overall</a>
+    <a href="#leaderboard" data-view="task">Leaderboard</a>
+    <a href="#convergence" data-view="task">Convergence</a>
+    <a href="#cost" data-view="task">Cost</a>
+    <a href="#runs" data-view="task">Runs</a>
+    <a href="#method" data-view="task">Method</a>
   </nav>
   <div class="repos" aria-label="Source code">
     <a href="https://github.com/huawei-csl/rtlscout" title="The RTL Scout agent on GitHub"><svg class="gh" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>rtlscout</a>
@@ -203,6 +210,22 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="card empty">
     <h3 id="empty-title">No results yet</h3>
     <p id="empty-text">No run has been published for this task. Results appear here once the first campaign is recorded and published.</p>
+  </div>
+</div></section>
+
+<section id="overall" hidden><div class="wrap">
+  <div class="sec-head">
+    <div><h2>Overall leaderboard</h2><p id="ov-desc"></p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Overall score">
+        <button aria-pressed="true" data-ov="rank">Mean rank</button>
+        <button aria-pressed="false" data-ov="score">Headroom-normalized</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="tbl"><table id="ov-table"></table></div>
+    <div class="cap" id="ov-cap"></div>
   </div>
 </div></section>
 
@@ -303,6 +326,9 @@ const SERIES = ['--s1','--s2','--s3','--s4','--s5','--s6','--s7'];
 const LANG = {verilog:'Verilog', spirehdl:'Spire HDL'};
 const SUP = {'0':'⁰','1':'¹','2':'²','3':'³','4':'⁴','5':'⁵','6':'⁶','7':'⁷','8':'⁸','9':'⁹'};
 let T = D.tasks[0];
+const OV = D.overall && D.tasks.length > 1 ? D.overall : null;   // the table across tasks, built by the site generator
+let view = OV ? 'overall' : 'task';                              // the page opens on the overall table
+let ovMode = 'rank';                                             // 'rank' (mean rank) or 'score' (headroom-normalized)
 let convAgg = 'median', convX = 'step';
 const hidden = new Set();
 const tip = $('tip');
@@ -339,6 +365,7 @@ const runLink = run => D.data_url ? `<a href="${esc(D.data_url)}/tree/${esc(Stri
 
 /* ---------- hero ---------- */
 function renderHero(){
+  if(view==='overall'){ renderHeroOverall(); return; }
   const R = rows(), all = R.flatMap(r=>r.runs);
   const steps = [...new Set(T.rows.map(r=>r.max_steps))];
   const rowLangs = [...new Set(T.rows.map(r=>r.language))];
@@ -358,6 +385,65 @@ function renderHero(){
   ];
   $('stats').innerHTML = s.map(([k,v,i])=>`<div class="stat"><span>${k}</span><b>${v}</b><i>${i}</i></div>`).join('');
   show('stats', true);
+}
+
+function renderHeroOverall(){
+  const allRows = D.tasks.flatMap(t=>t.rows), steps = [...new Set(allRows.map(r=>r.max_steps))];
+  const langs = [...new Set(allRows.map(r=>r.language))], lang = langs.length===1 ? (LANG[langs[0]]||langs[0])+' ' : '';
+  const metrics = [...new Set(D.tasks.map(t=>t.metric_label||'cost'))];
+  $('lede').innerHTML = `Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for ${steps.length===1 ? steps[0]+' steps' : 'a fixed number of steps'} on a ${lang}starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified ${esc(metrics.length===1?metrics[0]:'cost')} the agent reached, per design. Lower is better.`;
+  const complete = OV.rows.filter(r=>r.complete), partial = OV.rows.filter(r=>!r.complete);
+  const nRuns = allRows.reduce((n,r)=>n+r.runs.length,0);
+  const best = complete.slice().sort((a,b)=>a.geomean-b.geomean)[0];
+  const s = [
+    ['Tasks', OV.tasks.length, OV.tasks.map(t=>esc(t.title)).join(' · ')],
+    ['Entries ranked', complete.length, partial.length ? `${partial.length} more with results on some tasks` : 'all with results on every task'],
+    ['Agent runs', nRuns, `${steps.length===1?steps[0]:'a fixed number of'} steps each`],
+    ['Best average reduction', best ? pct(-best.reduction_pct) : '—', best ? esc(best.label) : 'no entry has every task yet'],
+  ];
+  $('stats').innerHTML = s.map(([k,v,i])=>`<div class="stat"><span>${k}</span><b>${v}</b><i>${i}</i></div>`).join('');
+  show('stats', true);
+}
+
+/* ---------- overall table ---------- */
+function renderOverall(){
+  const tasks = OV.tasks, nT = tasks.length;
+  const complete = OV.rows.filter(r=>r.complete), partial = OV.rows.filter(r=>!r.complete);
+  const byRank = (a,b)=>a.mean_rank-b.mean_rank || a.geomean-b.geomean || a.entry.localeCompare(b.entry);
+  const byScore = (a,b)=>b.score-a.score || a.geomean-b.geomean || a.entry.localeCompare(b.entry);
+  complete.sort(ovMode==='score' ? byScore : byRank); partial.sort(ovMode==='score' ? byScore : byRank);
+  document.querySelectorAll('.seg button[data-ov]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ov===ovMode?'true':'false'));
+  $('ov-desc').textContent = ovMode==='score'
+    ? `${nT} tasks · ranked by the headroom-normalized score: the share of the best known reduction reached on each task, averaged · higher is better`
+    : `${nT} tasks · ranked by the mean of the entry's rank on each task leaderboard · lower is better`;
+  const taskTh = tasks.map(t=>`<th class="num task" title="${esc(t.task)}">${esc(t.title)}<br><span style="text-transform:none;letter-spacing:0">rank · vs. start</span></th>`).join('');
+  let h = `<thead><tr><th></th><th>Model</th><th class="num">${ovMode==='score'?'score':'mean rank'}</th><th class="num">avg. reduction</th>${taskTh}<th class="num">tasks</th><th class="num">$/run</th><th>suite</th></tr></thead><tbody>`;
+  const cellOf = (r, t, ranked) => {
+    const c = r.cells[t.task];
+    if(!c) return `<td class="num cell" title="not run: counts as rank ${OV.worst_rank} and the worst score">—</td>`;
+    const d = c.pct, tip = `mean ${c.mean.toFixed(0)} over ${c.n} run${c.n===1?'':'s'}` + (r.complete ? '' : `, position ${c.pos} in the ${t.title} table; rank ${c.rank} among the ranked entries`);
+    return `<td class="num cell" title="${esc(tip)}">${ranked && c.rank!=null?`<span class="rk">${c.rank}</span> `:''}<span class="delta ${d>0?'worse':''}">${pct(d)}</span></td>`;
+  };
+  complete.forEach((r,i)=>{
+    const main = ovMode==='score' ? (r.score*100).toFixed(0)+' %' : r.mean_rank.toFixed(2);
+    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':''}${r.suites.length>1?'<span class="pill seed">mixed suites</span>':''}</div></td>
+      <td class="num"><b>${main}</b></td><td class="num delta ${r.reduction_pct<0?'worse':''}">${pct(-r.reduction_pct)}</td>${tasks.map(t=>cellOf(r,t,true)).join('')}
+      <td class="num">${nT} / ${nT}</td><td class="num">${r.usd_total==null?'—':(r.usd_total/nT).toFixed(1)}</td><td>${esc(r.suite)}</td></tr>`;
+  });
+  partial.forEach(r=>{
+    const have = Object.keys(r.cells).length;
+    const penTip = `penalized: a task not run counts as rank ${OV.worst_rank} (below every ranked entry) and as the worst score on that task; missing: ${r.missing.join(', ')}`;
+    const main = r.mean_rank==null ? '—' : ovMode==='score' ? (r.score*100).toFixed(0)+' %' : r.mean_rank.toFixed(2);
+    h += `<tr class="partial"><td class="rank">—</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':''}</div></td>
+      <td class="num" title="${esc(penTip)}">${main}<span class="pen">‡</span></td><td class="num">—</td>${tasks.map(t=>cellOf(r,t,true)).join('')}<td class="num" title="${esc('missing: '+r.missing.join(', '))}">${have} / ${nT}</td><td class="num">—</td><td>${esc(r.suite)}</td></tr>`;
+  });
+  $('ov-table').innerHTML = h + '</tbody>';
+  $('ov-cap').innerHTML = (ovMode==='score'
+    ? `<b>Headroom-normalized score</b>: on each task, (start − mean) / (start − best mean) among the ranked entries, so 100 % is the best entry on that task, 0 % the unmodified design and negative worse than it; averaged over the tasks. `
+    : `<b>Mean rank</b>: the average of the entry's rank on the ${nT} task leaderboards, where the ranks are taken among the entries with results on every task, so each task ranks the same field. Ties break by average reduction. `)
+    + `<b>Avg. reduction</b> is the geometric mean over tasks of mean cost / starting point, shown for information: it weights a task by its headroom. Per task: the rank among the ranked entries and the mean relative to the starting design. `
+    + `Only entries with results on every task are ranked. The greyed rows are partial: their value is penalized (‡), a task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that task, 0 or lower; on the tasks they ran, the rank is the position they would take among the ranked entries. $/run is the mean API cost per run across the tasks. `
+    + `Three runs per task and entry, so neighbouring positions are often within noise; the task set defines the score.`;
 }
 
 /* ---------- leaderboard table ---------- */
@@ -573,6 +659,12 @@ function renderMethod(){
 function renderAll(){
   assignColors(); hidden.clear();
   renderHero();
+  document.querySelectorAll('#nav a[data-view]').forEach(a=>{ a.hidden = a.dataset.view !== view; });
+  if(view==='overall'){
+    show('overall', true); show('content', false); show('empty', false); $('nav').hidden = false;
+    renderOverall(); return;
+  }
+  show('overall', false);
   const has = rows().length > 0;
   show('content', has); show('empty', !has); $('nav').hidden = !has;
   if(!has){ $('empty-title').textContent = 'No results yet'; $('empty-text').textContent = `No run has been published for ${T.title} yet. Results appear here once the first campaign is recorded and published.`; return; }
@@ -581,12 +673,15 @@ function renderAll(){
 
 /* ---------- task selector (hidden while there is a single task) ---------- */
 if(D.tasks.length > 1){
-  $('task-seg').innerHTML = D.tasks.map((t,i)=>`<button data-task="${i}" aria-pressed="${i===0}">${esc(t.title)}</button>`).join('');
+  $('task-seg').innerHTML = (OV ? `<button data-task="overall" aria-pressed="true">Overall</button>` : '')
+    + D.tasks.map((t,i)=>`<button data-task="${i}" aria-pressed="${!OV && i===0}">${esc(t.title)}</button>`).join('');
   show('task-wrap', true);
   document.querySelectorAll('#task-seg button').forEach(bt=>bt.addEventListener('click',()=>{
-    T = D.tasks[+bt.dataset.task]; document.querySelectorAll('#task-seg button').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderAll();
+    if(bt.dataset.task==='overall') view = 'overall'; else { view = 'task'; T = D.tasks[+bt.dataset.task]; }
+    document.querySelectorAll('#task-seg button').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderAll();
   }));
 }
+document.querySelectorAll('.seg button[data-ov]').forEach(bt=>bt.addEventListener('click',()=>{ ovMode = bt.dataset.ov; renderOverall(); }));
 document.querySelectorAll('.seg button[data-agg]').forEach(bt=>bt.addEventListener('click',()=>{
   convAgg = bt.dataset.agg; document.querySelectorAll('.seg button[data-agg]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();
 }));

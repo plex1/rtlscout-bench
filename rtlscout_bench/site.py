@@ -25,7 +25,7 @@ from pathlib import Path
 
 from .config import Matrix, MatrixError, load_matrix
 from .record import check_data, git_commit, load_models
-from .tables import BoardError, load_board, render_text
+from .tables import BoardError, load_board, overall_board, render_overall_text, render_text
 
 _GITHUB_RE = re.compile(r"^(?:https://github\.com/|git@github\.com:)([\w.-]+/[\w.-]+?)(?:\.git)?/?$")
 
@@ -88,7 +88,8 @@ def build_data(matrix: Matrix, data: Path) -> tuple[dict, list[dict]]:
                           excluded=board["excluded"], footnotes=board["footnotes"]))
     site = dict(generated=datetime.now().isoformat(timespec="minutes"), suite=matrix.suite,
                 open_weights_only=matrix.open_weights_only, bench_commit=git_commit(matrix.path.parent),
-                data_commit=git_commit(data), data_url=data_repo_url(data), tasks=tasks)
+                data_commit=git_commit(data), data_url=data_repo_url(data), tasks=tasks,
+                overall=overall_board(boards))
     return site, boards
 
 
@@ -134,6 +135,9 @@ def main(argv: list[str] | None = None) -> int:
         return 1
     page, data_js = write_site(site, template, Path(args.out))
     if not args.quiet:
+        if len(boards) > 1:
+            print(render_overall_text(site["overall"]))
+            print()
         for board in boards:
             print(render_text(board))
             print()

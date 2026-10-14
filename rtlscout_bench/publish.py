@@ -3,6 +3,8 @@
     python -m rtlscout_bench.publish              # the whole update; asks before the page changes
     python -m rtlscout_bench.publish --dry-run    # show the table before and after; change nothing
     python -m rtlscout_bench.publish --no-push    # commit locally in both repositories, push nothing
+    python -m rtlscout_bench.publish --no-record  # publish the data as committed (a page or text change) while a
+                                                  # campaign is still running: no finished run is recorded
 
 Steps:
   1. record every finished run of the campaigns under runs/ into data/  (as ``python -m rtlscout_bench.record``)
@@ -30,7 +32,7 @@ from pathlib import Path
 
 from .config import Matrix, MatrixError, load_matrix
 from .record import _campaign_files, check_data, load_models, record_campaign
-from .tables import BoardError, diff_boards, load_board, render_text
+from .tables import BoardError, diff_boards, diff_overall, load_board, overall_board, render_overall_text, render_text
 
 _NEW_RECORD_RE = re.compile(r"^runs/([^/]+)/([^/]+)/[^/]+/record\.json$")
 
@@ -121,6 +123,9 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--runs-dir", default="runs", help="where the campaigns wrote their raw output (default: runs)")
     ap.add_argument("--dry-run", action="store_true", help="show what would change; write, commit and push nothing")
     ap.add_argument("--no-push", action="store_true", help="commit in both repositories but push neither")
+    ap.add_argument("--no-record", action="store_true",
+                    help="skip step 1: publish the data repository as committed, record no finished run (for a page or "
+                         "text change while a campaign is still running)")
     ap.add_argument("-y", "--yes", action="store_true", help="do not ask before bumping the data pointer")
     ap.add_argument("-m", "--message", help="commit message for the data repository (default: derived from the "
                                             "new runs)")
@@ -165,9 +170,10 @@ def _publish(args, matrix: Matrix, bench: Path, data: Path, runs_dir: Path, tmp:
         work = tmp / "data"
         shutil.copytree(data, work, ignore=shutil.ignore_patterns(".git"))
     models = load_models(work)
-    files = _campaign_files(runs_dir) if runs_dir.is_dir() else []
+    files = _campaign_files(runs_dir) if runs_dir.is_dir() and not args.no_record else []
     print(f"1. recording new runs from {runs_dir}/"
-          + (" (dry run: into a temporary copy of the data)" if args.dry_run else ""))
+          + (" (dry run: into a temporary copy of the data)" if args.dry_run else "")
+          + (" (skipped: --no-record)" if args.no_record else ""))
     total = dict(recorded=0, already=0, skipped=0, refused=0)
     for f in files:
         print(f"campaign {f}")
@@ -175,7 +181,7 @@ def _publish(args, matrix: Matrix, bench: Path, data: Path, runs_dir: Path, tmp:
         for k in total:
             total[k] += counts[k]
     print(f"   recorded {total['recorded']}, already recorded {total['already']}, skipped {total['skipped']}, "
-          f"refused {total['refused']}" + ("" if files else " (no campaign files)"))
+          f"refused {total['refused']}" + ("" if files or args.no_record else " (no campaign files)"))
 
     # 2. validate
     errors, warnings, n = check_data(work, matrix)
@@ -211,10 +217,17 @@ def _publish(args, matrix: Matrix, bench: Path, data: Path, runs_dir: Path, tmp:
 
     # 4. the table, before and after
     print("\n4. leaderboard as published" + (f" (data @ {published[:7]})" if published else " (nothing published yet)"))
+    ov_before = overall_board(list(before.values())) if before else None
+    ov_after = overall_board(list(after.values()))
+    if len(after) > 1 and ov_before:
+        print(render_overall_text(ov_before))
     for task_id in after:
         print(render_text(before[task_id]) if task_id in before else f"{task_id}: (not published)")
     print("\n   leaderboard after this publish")
     changes = []
+    if len(after) > 1:
+        print(render_overall_text(ov_after))
+        changes += diff_overall(ov_before, ov_after)
     for task_id, board in after.items():
         print(render_text(board))
         changes += [f"{task_id}: {line}" for line in diff_boards(before.get(task_id), board)]

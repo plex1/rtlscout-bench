@@ -93,6 +93,19 @@ def test_publish_commits_and_pushes_data_then_the_pointer(repos, capsys):
     assert "(none: the page would look the same)" in out
 
 
+def test_no_record_publishes_the_data_as_committed_and_records_nothing(repos, capsys):
+    _run_campaign(capsys)                                        # finished runs are waiting under runs/
+    models = json.loads((repos["data"] / "models.json").read_text())
+    models["models"]["openrouter:example/model-a"]["name"] = "Model A (renamed)"
+    (repos["data"] / "models.json").write_text(json.dumps(models, indent=1))
+    git(repos["data"], "commit", "-q", "-am", "models: rename")  # a curation change, committed in data
+    assert publish.main(["--no-record", "--no-push", "-y"]) == 0
+    out = capsys.readouterr().out
+    assert "1. recording new runs from runs/ (skipped: --no-record)" in out and "recorded 0, already recorded 0" in out
+    assert not list(repos["data"].glob("runs/*/*/*/record.json"))        # the finished runs stay unrecorded
+    assert _pointer(repos["bench"]) == git(repos["data"], "rev-parse", "HEAD")   # the pointer moved to the data commit
+
+
 def test_declining_keeps_the_data_commit_but_not_the_page(repos, capsys, monkeypatch):
     _run_campaign(capsys)
     old_pointer = _pointer(repos["bench"])

@@ -40,6 +40,7 @@ def test_build_writes_the_template_copy_and_one_data_file(bench, tmp_path, capsy
     d = _site_data()
     assert d["suite"] == "suite-t1" and d["open_weights_only"] is True and d["data_url"] is None
     (task,) = d["tasks"]
+    assert d["overall"]["tasks"] == [dict(task="demo-adp", title=task["title"])] and d["overall"]["n_complete"] >= 1
     assert (task["id"], task["title"], task["metric"], task["unit"], task["scale_exp"]) == \
         ("demo-adp", "Demo design", "area_delay_product", "µm²·ps", 3)
     assert task["baselines"]["verilog"]["cost"] == 1000.0 and task["footnotes"] == ["A general footnote."]
@@ -113,6 +114,12 @@ def test_template_contains_no_results():
     assert not re.search(r"\d\.\d{3} ±", TEMPLATE)                       # no leaderboard numbers baked in
     for name in ("GLM", "Kimi", "Nemotron"):
         assert name not in TEMPLATE                                      # model names come from the data file only
+
+
+def test_template_has_the_overall_view_with_its_score_switch():
+    assert 'id="overall"' in TEMPLATE and 'id="ov-table"' in TEMPLATE and 'data-task="overall"' in TEMPLATE
+    assert 'data-ov="rank"' in TEMPLATE and 'data-ov="score"' in TEMPLATE          # mean rank / headroom-normalized
+    assert "D.overall" in TEMPLATE and 'data-view="overall"' in TEMPLATE
 
 
 def test_template_has_the_required_states_and_no_dropped_sections():

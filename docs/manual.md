@@ -325,10 +325,23 @@ tasks:
 | `heavy` | scheduling hint for designs whose evaluations take tens of minutes |
 | `enabled` | default `true` |
 
-**Scores are never compared across tasks.** Units differ, and a fast metric uses a different flow than the full
+**Costs are never compared across tasks.** Units differ, and a fast metric uses a different flow than the full
 one. Every task gets its own table, and the page shows a task selector once more than one task is enabled. For
 the same reason an entry cannot override a task's metric, target delay or scoring flags: a different objective
 is a new task, so all rows of one table are comparable by construction.
+
+**The overall table** (the page's first view once there is more than one task, and the first block `site` and
+`publish` print) compares positions, not costs. An entry is *complete* when every enabled task has a row of it
+with a passing run; only complete entries are ranked, and both scores are computed among them, so every task
+ranks the same field. *Mean rank* is the mean of the entry's rank per task (lower is better). The
+*headroom-normalized score* is, per task, (start − mean) / (start − best mean among the complete entries), the
+share of the best known reduction the entry reached, averaged over the tasks (higher is better; a task nobody
+improved contributes 0). The page switches between the two; the *average reduction* next to them is the
+geometric mean over tasks of mean cost / start, informative only because it weights a task by its headroom.
+Entries with results on some tasks appear greyed below the ranked ones, with a penalized mean rank and score: a
+task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that
+task (0 or lower). Nothing in `data/` stores this table: it
+is derived from the task leaderboards at build time, and `publish` shows how the ranking would change.
 
 The first time a run of a new task is recorded, `data/leaderboards/<task>.json` is created with placeholder
 texts. Fill in `title`, `description`, `metric_label`, `unit` and `flow` there; the page shows them
@@ -626,6 +639,10 @@ updated data/leaderboards/tpu-adp.json; commit it in the data repo to make it co
 first, and the published leaderboard counts that run.) `--exclude` without `--reason` is an error. After an
 exclusion, run `publish` again: it commits the changed leaderboard file and shows the new table. An excluded
 run no longer counts towards the entry's `repeats`, so the next campaign launches a replacement.
+
+**Without recording.** `--no-record` skips step 1: the data repository is published as committed and no finished
+run is recorded. This is how a page or text change goes live while a campaign is still running, without its
+first finished runs appearing as partial rows.
 
 **Without pushing.** `--no-push` makes both commits locally and pushes neither repository; push the data
 repository first, then `rtlscout-bench`, when you are ready. `-m "<message>"` sets the data commit message
@@ -1031,7 +1048,7 @@ The rtlscout version is pinned by git commit (or tag) in `pyproject.toml`:
 
 ```toml
 dependencies = [
-    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@6c6eac714de436e5215330216af381a70dd2dfca",
+    "rtlscout @ git+https://github.com/huawei-csl/rtlscout@1749dde6c49492f7a2d51096293f6cb758792d30",
 ```
 
 To move the leaderboard to a new version, change the commit or tag, commit, and reinstall inside the container:

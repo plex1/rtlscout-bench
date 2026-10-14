@@ -370,6 +370,148 @@ def diff_boards(before: dict | None, after: dict) -> list[str]:
 
 
 # --------------------------------------------------------------------------------------------------------------
+# the overall leaderboard: one row per entry across the tasks
+# --------------------------------------------------------------------------------------------------------------
+
+def overall_board(boards: list[dict]) -> dict:
+    """One table across the tasks, derived from the task boards (nothing in ``data/`` is read for it).
+
+    An entry is *complete* when every task has a row of it with a passing run and a starting point for its
+    language. Only complete entries get the two scores, both computed among complete entries only, so every task
+    ranks the same field:
+
+    - ``mean_rank``: the mean of the entry's rank per task (1 = lowest mean cost); lower is better.
+    - ``score``: the headroom-normalized score, per task (start - mean) / (start - best mean among complete
+      entries), i.e. the share of the best known reduction the entry achieved (1 = best on that task, 0 = no
+      change, negative = worse than the starting design), averaged over tasks; higher is better. A task where no
+      complete entry improved on the start contributes 0 for everyone.
+    - ``geomean``: the geometric mean over tasks of mean cost / start; ``reduction_pct`` is 100 * (1 - geomean).
+      Informative only (it weights a task by its headroom).
+
+    Incomplete entries keep their per-task cells (``pct`` and the position in that task table) and ``missing``,
+    the tasks without a result. They get a *penalized* mean rank and score, to be shown greyed: on a task they
+    ran, the rank is the position they would take in the complete field (without displacing anyone) and the
+    score uses the same headroom; a task they did not run counts as the worst rank (one below the last
+    complete entry) and as the worst score on that task: 0 (no change against the start) or lower if a complete
+    entry did worse than that.
+    ``geomean`` stays None for them. Rows come sorted by mean rank, ties by geomean, complete entries first.
+    """
+    tasks = [dict(task=b["task"], title=b["title"]) for b in boards
+             if any(x.get("cost") for x in b["baselines"].values())]
+    task_ids = [t["task"] for t in tasks]
+    by_task = {b["task"]: b for b in boards}
+    rows: dict[str, dict] = {}
+    for tid in task_ids:
+        board = by_task[tid]
+        for pos, r in enumerate(board["rows"], 1):
+            row = rows.setdefault(r["entry"], dict(
+                entry=r["entry"], label=r["label"], name=r["name"], model=r["model"], vendor=r["vendor"],
+                open_weights=r["open_weights"], language=r["language"], reasoning_effort=r["reasoning_effort"],
+                suites=[], cells={}))
+            if r["suite"] not in row["suites"]:
+                row["suites"].append(r["suite"])
+            base = baseline_cost(board, r["language"])
+            if r["agg"] is None or not base:
+                continue
+            a = r["agg"]
+            row["cells"][tid] = dict(mean=a["mean"], sd=a["sd"], n=a["n"], no_pass=a["no_pass"], ratio=a["mean"] / base,
+                                     pct=(a["mean"] / base - 1) * 100, pos=pos, usd=a["usd"], runtime=a["runtime"],
+                                     rank=None, score=None)
+    for row in rows.values():
+        row["complete"] = all(tid in row["cells"] for tid in task_ids) and bool(task_ids)
+        row["missing"] = [tid for tid in task_ids if tid not in row["cells"]]
+        row["suite"] = " / ".join(row["suites"])
+        row["mean_rank"] = row["score"] = row["geomean"] = row["reduction_pct"] = None
+        row["usd_total"] = row["runtime_total"] = None
+    complete = [r for r in rows.values() if r["complete"]]
+    for tid in task_ids:
+        ordered = sorted(complete, key=lambda r: (r["cells"][tid]["mean"], r["entry"]))
+        best = ordered[0]["cells"][tid]["mean"] if ordered else None
+        for rank, r in enumerate(ordered, 1):
+            c = r["cells"][tid]
+            c["rank"] = rank
+            b = baseline_cost(by_task[tid], r["language"])
+            headroom = b - best if b and best is not None else 0.0
+            c["score"] = (b - c["mean"]) / headroom if headroom > 0 else 0.0
+    for r in complete:
+        cells = [r["cells"][tid] for tid in task_ids]
+        r["mean_rank"] = statistics.mean(c["rank"] for c in cells)
+        r["score"] = statistics.mean(c["score"] for c in cells)
+        r["geomean"] = math.exp(statistics.mean(math.log(c["ratio"]) for c in cells))
+        r["reduction_pct"] = (1 - r["geomean"]) * 100
+        usd = [c["usd"] for c in cells]
+        r["usd_total"] = sum(usd) if all(u is not None for u in usd) else None
+        r["runtime_total"] = sum(c["runtime"] for c in cells)
+    # partial entries: penalized scores (a task not run = the worst rank and the worst score of the field)
+    worst_rank = len(complete) + 1
+    for r in rows.values():
+        if r["complete"] or not task_ids:
+            continue
+        ranks, scores = [], []
+        for tid in task_ids:
+            field = [x["cells"][tid] for x in complete]
+            if tid in r["cells"]:
+                c = r["cells"][tid]
+                c["rank"] = 1 + sum(1 for f in field if f["mean"] < c["mean"])
+                b = baseline_cost(by_task[tid], r["language"])
+                best = min(f["mean"] for f in field) if field else c["mean"]
+                headroom = b - best if b else 0.0
+                c["score"] = (b - c["mean"]) / headroom if headroom > 0 else 0.0
+                ranks.append(c["rank"]); scores.append(c["score"])
+            else:
+                ranks.append(worst_rank); scores.append(min([0.0] + [f["score"] for f in field]))
+        r["mean_rank"] = statistics.mean(ranks)
+        r["score"] = statistics.mean(scores)
+    out = sorted(rows.values(), key=lambda r: (not r["complete"], r["mean_rank"] if r["mean_rank"] is not None else 0.0,
+                                               r["geomean"] if r["geomean"] is not None else 0.0, -len(r["cells"]), r["entry"]))
+    return dict(tasks=tasks, rows=out, n_complete=len(complete), worst_rank=worst_rank)
+
+
+def render_overall_text(overall: dict) -> str:
+    """Fixed-width overall table: rank by mean rank, with the headroom-normalized score next to it."""
+    tasks = overall["tasks"]
+    lines = [f"overall: {len(tasks)} task(s) ({', '.join(t['task'] for t in tasks)}); ranked by mean rank among the "
+             f"{overall['n_complete']} entries with a result on every task"]
+    complete = [r for r in overall["rows"] if r["complete"]]
+    if complete:
+        hdr = ("#", "Entry", "mean rank", "score", "avg. reduction") + tuple(t["task"] for t in tasks) + ("$/task", "suite")
+        table = [hdr]
+        for i, r in enumerate(complete, 1):
+            cells = tuple(f"{r['cells'][t['task']]['rank']} · {r['cells'][t['task']]['pct']:+.1f}%" for t in tasks)
+            usd = DASH if r["usd_total"] is None else f"{r['usd_total'] / len(tasks):.1f}"
+            table.append((str(i), r["label"], f"{r['mean_rank']:.2f}", f"{r['score']:.2f}", f"{-r['reduction_pct']:+.1f}%")
+                         + cells + (usd, r["suite"]))
+        widths = [max(len(row[i]) for row in table) for i in range(len(hdr))]
+        left = {1, len(hdr) - 1}
+        for j, row in enumerate(table):
+            lines.append("  ".join(c.ljust(widths[i]) if i in left else c.rjust(widths[i]) for i, c in enumerate(row)).rstrip())
+            if j == 0:
+                lines.append("  ".join("-" * w for w in widths))
+    else:
+        lines.append("(no entry has a result on every task)")
+    partial = [r for r in overall["rows"] if not r["complete"]]
+    for r in partial:
+        have = ", ".join(f"{tid} {c['pct']:+.1f}%" for tid, c in r["cells"].items())
+        pen = (f"; penalized mean rank {r['mean_rank']:.2f}, score {r['score']:.2f}" if r["mean_rank"] is not None else "")
+        lines.append(f"  partial: {r['label']} ({len(r['cells'])} of {len(tasks)} tasks: {have or 'no passing run'}{pen})")
+    return "\n".join(lines)
+
+
+def diff_overall(before: dict | None, after: dict) -> list[str]:
+    """How the overall ranking changes between two states (for the publish gate)."""
+    order = lambda o: [r["label"] for r in (o or {}).get("rows", []) if r["complete"]]
+    b, a = order(before), order(after)
+    out = []
+    if a != b:
+        out.append("overall: ranking (mean rank) " + (f"{' > '.join(b)} -> " if b else "") + (" > ".join(a) or "(no complete entry)"))
+    b_partial = {r["entry"] for r in (before or {}).get("rows", []) if not r["complete"]}
+    for r in after["rows"]:
+        if not r["complete"] and r["entry"] not in b_partial and r["entry"] not in {x["entry"] for x in (before or {}).get("rows", [])}:
+            out.append(f"overall: + partial entry {r['label']} ({len(r['cells'])} of {len(after['tasks'])} tasks)")
+    return out
+
+
+# --------------------------------------------------------------------------------------------------------------
 # command line
 # --------------------------------------------------------------------------------------------------------------
 

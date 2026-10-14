@@ -4,8 +4,9 @@
 
 The benchmark suite, the campaign tooling and the page template of the RTL Scout leaderboard: how far can an LLM
 agent push a hardware design? Each model drives the [RTL Scout](https://github.com/huawei-csl/rtlscout) agent for
-a fixed number of steps on the same starting design, with a self-checking testbench and a full synthesis flow in
-the loop. The score is the best verified cost the agent reached.
+a fixed number of steps on a task's starting design, with a self-checking testbench and a full synthesis flow in
+the loop. The score is the best verified cost the agent reached; across tasks, entries are ranked by mean rank
+or by a headroom-normalized score.
 
 Updating the leaderboard is two commands:
 
