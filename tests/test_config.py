@@ -40,6 +40,8 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert m.entry("glm-5.2-high").reasoning_effort == "high"
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "coreweave") in m.entry("deepseek-v4.1-flash").env, "DeepSeek pinned too"
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "xiaomi") in m.entry("mimo-v2.6-flash").env
+    for e, pin in (("deepseek-v4-pro", "alibaba"), ("glm-5.3", "z-ai"), ("mimo-v2.6-pro", "xiaomi"), ("qwen3.8-2.4t", "alibaba")):
+        assert m.entry(e).tasks == ("tpu-adp",) and ("RTLSCOUT_OPENROUTER_PROVIDERS", pin) in m.entry(e).env   # round 3
     assert all(any(k == "RTLSCOUT_OPENROUTER_PROVIDERS" for k, _ in e.env) for e in m.entries
                if e.id not in ("kimi-k3", "nemotron-3-ultra", "kimi-k3-high")), "every entry since suite-v2 is pinned"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
@@ -48,8 +50,9 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     pinned = {e.id for e in m.entries if ("RTLSCOUT_OPENROUTER_PROVIDERS", "z-ai") in e.env}
     assert pinned == {e.id for e in m.entries if e.model.startswith("openrouter:z-ai/")}, "GLM entries pinned to Z.AI"
     assert m.tasks["tpu-adp"].flags == ("--skip-cec",) and m.tasks["qr-adp-fast"].heavy
-    n_tasks = len(m.enabled_tasks())
-    assert len(m.jobs()) == n_tasks * len(enabled) and sum(e.repeats for _, e in m.jobs()) == 3 * n_tasks * len(enabled)
+    enabled_tasks = {t.id for t in m.enabled_tasks()}
+    n_jobs = sum(len(set(e.tasks) & enabled_tasks) for e in m.entries if e.enabled)     # round-3 entries run tpu-adp only
+    assert len(m.jobs()) == n_jobs and sum(e.repeats for _, e in m.jobs()) == 3 * n_jobs
 
 
 def test_a_bare_yaml_off_is_the_off_effort(bench):

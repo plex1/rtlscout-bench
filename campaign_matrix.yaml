@@ -86,6 +86,23 @@ entries:                               # open-weights models only, for now
   - id: mimo-v2.6-flash                # Xiaomi MiMo-V2.6-Flash (MIT weights); thinking is a toggle at Xiaomi, effort levels map onto it
     model: openrouter:xiaomi/mimo-v2.6-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: xiaomi}   # the vendor's own endpoint (fp8)
+  # round 3 (2026-10-14): the labs' flagships and the Qwen family, on tpu-adp first
+  - id: deepseek-v4-pro                # DeepSeek's flagship (MIT weights); default effort high
+    model: openrouter:deepseek/deepseek-v4-pro-0813
+    tasks: [tpu-adp]
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: alibaba}   # DeepSeek's own endpoint is excluded by the OpenRouter account's data policy (it may train on paid data)
+  - id: glm-5.3                        # the big sibling of GLM 5.3 Flash; default effort max at Z.AI
+    model: openrouter:z-ai/glm-5.3
+    tasks: [tpu-adp]
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}
+  - id: mimo-v2.6-pro                  # Xiaomi's 1T flagship (MIT weights); thinking on by default
+    model: openrouter:xiaomi/mimo-v2.6-pro
+    tasks: [tpu-adp]
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: xiaomi}
+  - id: qwen3.8-2.4t                   # the open-weight 2.4T-A95B variant of Qwen3.8 Max; always in thinking mode
+    model: openrouter:qwen/qwen3.8-2.4t-a95b
+    tasks: [tpu-adp]
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: alibaba}
   - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
     model: openrouter:z-ai/glm-5.2
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)

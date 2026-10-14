@@ -247,6 +247,10 @@ entries
   glm-5.2-nothink            enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort off, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   deepseek-v4.1-flash        enabled   openrouter:deepseek/deepseek-v4.1-flash        verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   mimo-v2.6-flash            enabled   openrouter:xiaomi/mimo-v2.6-flash              verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
+  deepseek-v4-pro            enabled   openrouter:deepseek/deepseek-v4-pro-0813       verilog, 60 steps, effort default, x3  -> tpu-adp
+  glm-5.3                    enabled   openrouter:z-ai/glm-5.3                        verilog, 60 steps, effort default, x3  -> tpu-adp
+  mimo-v2.6-pro              enabled   openrouter:xiaomi/mimo-v2.6-pro                verilog, 60 steps, effort default, x3  -> tpu-adp
+  qwen3.8-2.4t               enabled   openrouter:qwen/qwen3.8-2.4t-a95b              verilog, 60 steps, effort default, x3  -> tpu-adp
   glm-5.2-spire              disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.2-spire-autoconfig   disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize --arith-autoconfig  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
 
@@ -291,8 +295,12 @@ jobs (enabled task x enabled entry)
   jpeg-adp / mimo-v2.6-flash               benchmarks/jpeg_idct_2d_verilog 3 runs
   pdpu-adp / mimo-v2.6-flash               benchmarks/pdpu_dot16_pipe_verilog 3 runs
   fpmul-adp / mimo-v2.6-flash              benchmarks/fpmul_f16_verilog 3 runs
+  tpu-adp / deepseek-v4-pro                benchmarks/tpu_verilog       3 runs
+  tpu-adp / glm-5.3                        benchmarks/tpu_verilog       3 runs
+  tpu-adp / mimo-v2.6-pro                  benchmarks/tpu_verilog       3 runs
+  tpu-adp / qwen3.8-2.4t                   benchmarks/tpu_verilog       3 runs
 
-OK: 4 enabled task(s), 10 enabled entries, 120 runs for a full campaign
+OK: 4 enabled task(s), 14 enabled entries, 132 runs for a full campaign
 ```
 
 A mistake is reported with every problem at once and exit status 2. This is what a misspelt reasoning effort and
