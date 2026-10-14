@@ -382,8 +382,9 @@ entries:
 
 **The same model twice.** Two rows of one model are two entries with different ids, as `kimi-k3` and
 `kimi-k3-high` above. Their runs live in different directories and never mix. The page derives the row label
-from the model's display name plus what distinguishes the row ("Kimi K3 · high effort", "GLM 5.2 · thinking off",
-"GLM 5.2 · Spire HDL").
+from the model's display name plus the effort that ran, in brackets: the explicit setting of the entry ("GLM 5.3
+Flash (high)", "GLM 5.2 (thinking off)") or, for a default-effort entry, the vendor's default as recorded from
+`models.json` ("GLM 5.3 Flash (max)"); no brackets when neither is known. Spire HDL rows add " · Spire HDL".
 
 **The model also needs a row in `data/models.json`**: display name, vendor, `open_weights`, and list prices in
 USD per million tokens. Without prices the run is still recorded but has no dollar figure.

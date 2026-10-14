@@ -58,7 +58,7 @@ def test_dry_run_shows_the_change_and_touches_nothing(repos, capsys):
     assert "recorded 4, already recorded 0" in out and "2. data check: 4 records (4 selected, 0 excluded): OK" in out
     assert "3. dry run: data/ not committed (4 new run record(s) would be)" in out
     assert "4. leaderboard as published (data @ " in out and "(no runs selected)" in out.split("leaderboard after")[0]
-    assert "demo-adp: + row added    Model A · high effort [model-a-high]: n=2, mean 0.720 ± 0.000 (suite-t1)" in out
+    assert "demo-adp: + row added    Model A (high) [model-a-high]: n=2, mean 0.720 ± 0.000 (suite-t1)" in out
     assert "demo-adp: ~ starting point (verilog): none -> 1,000.00" in out
     assert "dry run: nothing was written to data/, committed or pushed" in out
     assert git(repos["data"], "status", "--porcelain") == "" and git(repos["data"], "rev-parse", "HEAD") == head

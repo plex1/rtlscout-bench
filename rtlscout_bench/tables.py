@@ -51,17 +51,18 @@ def aggregate(records: list[dict]) -> dict | None:
                 usd=statistics.mean(usd) if usd else None, usd_sd=_sd(usd) if usd else None)
 
 
-def effort_label(effort: str) -> str:
-    """How a non-default reasoning effort reads in a row label: "high effort", "thinking off"; "" for default."""
+def effort_label(effort: str, default: str | None = None) -> str:
+    """What ran, for the brackets of a row label: the explicit setting of the entry ("high", "thinking off") or,
+    for a default row, the vendor's default as recorded (``reasoning_effort_default``, e.g. "max"); "" when the
+    entry runs at default and the default is not known."""
     if effort == "default":
-        return ""
-    return "thinking off" if effort == "off" else f"{effort} effort"
+        return default or ""
+    return "thinking off" if effort == "off" else effort
 
 
 def _label(name: str, rec: dict) -> str:
-    parts = [name]
-    if effort_label(rec["reasoning_effort"]):
-        parts.append(effort_label(rec["reasoning_effort"]))
+    shown = effort_label(rec["reasoning_effort"], rec.get("reasoning_effort_default"))
+    parts = [name + (f" ({shown})" if shown else "")]
     if rec["language"] != "verilog":
         parts.append(LANGUAGE_LABEL.get(rec["language"], rec["language"]))
     return " · ".join(parts)
@@ -287,7 +288,8 @@ def render_head_to_head(board: dict) -> str:
         va, sa = v["agg"], s["agg"]
         lo, hi = sorted((sa["min"], va["min"]))
         win = ("Spire " if sa["min"] < va["min"] else "Verilog ") + pct(lo, hi)
-        name = v["name"] + (f" · {effort_label(effort)}" if effort_label(effort) else "")
+        shown = effort_label(effort, v["runs"][0].get("reasoning_effort_default"))
+        name = v["name"] + (f" ({shown})" if shown else "")
         lines.append(f"| {name} | {fmt(bv)} / {fmt(bs)} | {fmt(va['min'])} ({fmt(va['median'])}) "
                      f"| {fmt(sa['min'])} ({fmt(sa['median'])}) | {pct(va['min'], bv)} / {pct(sa['min'], bs)} "
                      f"| {win} |")

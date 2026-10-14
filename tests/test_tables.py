@@ -53,11 +53,13 @@ def test_scale_exponent(value, exp):
 
 def test_row_labels_name_the_effort_and_the_language():
     rec = dict(reasoning_effort="default", language="verilog")
-    assert tables._label("Model A", rec) == "Model A"
-    assert tables._label("Model A", dict(rec, reasoning_effort="high")) == "Model A · high effort"
-    assert tables._label("Model A", dict(rec, reasoning_effort="off")) == "Model A · thinking off"
+    assert tables._label("Model A", rec) == "Model A"                               # default, vendor default unknown
+    assert tables._label("Model A", dict(rec, reasoning_effort_default="max")) == "Model A (max)"
+    assert tables._label("Model A", dict(rec, reasoning_effort="high")) == "Model A (high)"
+    assert tables._label("Model A", dict(rec, reasoning_effort="high", reasoning_effort_default="max")) == "Model A (high)"
+    assert tables._label("Model A", dict(rec, reasoning_effort="off")) == "Model A (thinking off)"
     assert tables._label("Model A", dict(rec, reasoning_effort="off", language="spirehdl")) == \
-        "Model A · thinking off · Spire HDL"
+        "Model A (thinking off) · Spire HDL"
 
 
 def test_board_rows_are_ranked_and_labelled(bench, tmp_path):
@@ -66,7 +68,7 @@ def test_board_rows_are_ranked_and_labelled(bench, tmp_path):
     _set_baseline()
     board = load_board(DATA, "demo-adp", "suite-t1")
     assert [r["entry"] for r in board["rows"]] == ["model-a-high", "model-a"]
-    assert [r["label"] for r in board["rows"]] == ["Model A · high effort", "Model A"]
+    assert [r["label"] for r in board["rows"]] == ["Model A (high)", "Model A"]
     top = board["rows"][0]
     assert top["agg"]["mean"] == pytest.approx(650.0) and top["agg"]["sd"] == pytest.approx(50.0)
     assert top["agg"]["n"] == 3
@@ -170,7 +172,7 @@ def test_diff_of_two_leaderboard_states(bench, tmp_path):
     _set_baseline(1000.0)
     after = load_board(DATA, "demo-adp", "suite-t1")
     lines = diff_boards(before, after)
-    added = "+ row added    Model A · high effort [model-a-high]: n=1, mean 0.600"
+    added = "+ row added    Model A (high) [model-a-high]: n=1, mean 0.600"
     changed = "~ row changed  Model A [model-a]: n=2, mean 0.750 ± 0.071"
     assert any(line.startswith(added) for line in lines)
     assert any(line.startswith(changed) and "runs +1 -1" in line for line in lines)

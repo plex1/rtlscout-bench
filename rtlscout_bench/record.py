@@ -254,6 +254,8 @@ def build_record(run_dir: Path, cond: dict, prov: dict, models: dict) -> dict:
                cost_metric=cond["cost_metric"], target_delay=cond["target_delay"], technology=cond["technology"],
                entry=cond["entry"], model=cond["model"], open_weights=(info or {}).get("open_weights"),
                reasoning_effort=cond["reasoning_effort"])
+    if (info or {}).get("default_reasoning_effort"):   # what a "default" row ran, as the vendor documented it then
+        rec["reasoning_effort_default"] = info["default_reasoning_effort"]
     if prov.get("reasoning_effort_source"):
         rec["reasoning_effort_source"] = prov["reasoning_effort_source"]
     rec.update(agent_backend=cond["agent_backend"], max_steps=cond["max_steps"], flags=list(cond["flags"]),

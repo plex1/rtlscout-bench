@@ -309,3 +309,15 @@ def test_validate_record_rejects_inconsistent_best(bench, tmp_path):
     rec["best"]["cost"] = 1.0
     assert "best.cost is not the lowest passing cost among the evals" in validate_record(rec)
     assert validate_record([]) == ["not a JSON object"]
+
+
+def test_the_vendor_default_effort_is_copied_into_the_record(bench, tmp_path):
+    import json
+    models = json.loads((bench / "data" / "models.json").read_text())
+    models["models"]["openrouter:example/model-a"]["default_reasoning_effort"] = "max"
+    (bench / "data" / "models.json").write_text(json.dumps(models, indent=1))
+    from conftest import adopt, make_run
+    assert adopt([make_run(tmp_path / "raw")]) == 0
+    (rec,) = list((bench / "data" / "runs" / "demo-adp" / "model-a").glob("*/record.json"))
+    assert json.loads(rec.read_text())["reasoning_effort_default"] == "max"
+
