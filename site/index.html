@@ -832,19 +832,24 @@ function renderDesigns(){
   show('designs', pts.length>0);
   if(!pts.length) return;
   const log = desAx==='log';
+  // axis limits from the data, the upper end at most 20% above the starting design: designs far worse than the start fall outside
   const as = pts.map(q=>q.p.a).concat(starts.map(s=>s.a)), ds = pts.map(q=>q.p.d).concat(starts.map(s=>s.d));
+  const capA = starts.length ? Math.max(...starts.map(s=>s.a))*1.2 : Infinity, capD = starts.length ? Math.max(...starts.map(s=>s.d))*1.2 : Infinity;
+  const aMax = Math.min(Math.max(...as), capA), dMax = Math.min(Math.max(...ds), capD);
   const W=960, ml=70, mr=30, mt=24, mb=44, H=420;
   let x0, x1, y0, y1, xt, yt, X, Y;
   if(log){
-    x0=Math.min(...as)/1.15; x1=Math.max(...as)*1.15; y0=Math.min(...ds)/1.15; y1=Math.max(...ds)*1.15;
+    x0=Math.min(...as)/1.1; x1=aMax*1.05; y0=Math.min(...ds)/1.1; y1=dMax*1.05;
     xt=logTicks(x0,x1); yt=logTicks(y0,y1);
     X = v => ml + (Math.log10(v)-Math.log10(x0))/(Math.log10(x1)-Math.log10(x0))*(W-ml-mr);
     Y = v => mt + (Math.log10(y1)-Math.log10(v))/(Math.log10(y1)-Math.log10(y0))*(H-mt-mb);
   } else {
-    const ax=niceTicks(0, Math.max(...as)*1.05, 8), ay=niceTicks(0, Math.max(...ds)*1.05, 6);
-    x0=0; x1=ax.hi; y0=0; y1=ay.hi; xt=ax.ticks; yt=ay.ticks;
+    const ax=niceTicks(Math.min(...as)*0.95, aMax*1.03, 8), ay=niceTicks(Math.min(...ds)*0.95, dMax*1.03, 6);
+    x0=ax.lo; x1=ax.hi; y0=ay.lo; y1=ay.hi; xt=ax.ticks; yt=ay.ticks;
     X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr); Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   }
+  const inRange = q => q.p.a>=x0 && q.p.a<=x1 && q.p.d>=y0 && q.p.d<=y1;
+  const nOut = pts.filter(q=>!inRange(q)).length;
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Area against delay of every passing design'});
   yt.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,fmtNum(v),{'text-anchor':'end'})); });
   xt.forEach(v=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt,y2:H-mb,class:'grid'})); svg.appendChild(txt(X(v),H-mb+16,fmtNum(v),{'text-anchor':'middle'})); });
@@ -865,7 +870,7 @@ function renderDesigns(){
   const vis = pts.filter(q=>!desHidden.has(q.r.entry));
   const front = vis.filter(q=>!vis.some(o=>o!==q && o.p.a<=q.p.a && o.p.d<=q.p.d && (o.p.a<q.p.a || o.p.d<q.p.d))).sort((a,b)=>a.p.a-b.p.a);
   if(front.length>1) svg.appendChild(el('path',{d:front.map((q,i)=>(i?`V${Y(q.p.d).toFixed(1)}H${X(q.p.a).toFixed(1)}`:`M${X(q.p.a).toFixed(1)} ${Y(q.p.d).toFixed(1)}`)).join(''),fill:'none',class:'pareto'}));
-  vis.forEach(q=>{
+  vis.filter(inRange).forEach(q=>{
     const c = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:q.best?6:3.5,class:'dot',style:`fill:${colorOf[q.r.entry]};${q.best?'':'opacity:.55;stroke-width:1'}`});
     const hit = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:9,class:'hit'});
     bindTip(hit,`<b>${esc(q.r.label)}</b> · ${esc(q.run.id)} · eval ${q.p.e}${q.p.s!=null?` / step ${q.p.s}`:''}${q.best?' · <b>best of the run</b>':''}<br><span class="mono">${q.p.a.toFixed(1)} µm² × ${q.p.d.toFixed(1)} ps = ${fmtC(q.p.c)} ${esc(unit().split(' ')[0])}${q.p.td?` · target ${q.p.td} ps`:''}</span>`);
@@ -873,7 +878,7 @@ function renderDesigns(){
   });
   starts.forEach(s=>{ svg.appendChild(el('rect',{x:X(s.a)-6,y:Y(s.d)-6,width:12,height:12,class:'start'})); svg.appendChild(txt(X(s.a)+9,Y(s.d)+4,'start',{class:'lbl'})); });
   const host=$('designs-chart'); host.innerHTML=''; host.appendChild(svg);
-  $('des-desc').textContent = `Area against delay of every passing design of the selected runs (${pts.length} designs); the large dots are the best design of each run, the square the starting design.`;
+  $('des-desc').textContent = `Area against delay of every passing design of the selected runs (${pts.length} designs${nOut?`, ${nOut} of them beyond the plotted range, more than 20% above the start on an axis`:''}); the large dots are the best design of each run, the square the starting design.`;
   $('des-cap').textContent = `Diagonals are iso-cost lines, area × delay equal to the starting design's cost, its half and its quarter. The stepped line is the Pareto front of the designs shown: no other design has both less area and less delay. Designs evaluated under a target delay the agent changed are plotted where synthesis put them; the hover names the target.`;
   $('designs-legend').innerHTML = R.map(r=>`<button data-id="${esc(r.entry)}" aria-pressed="${desHidden.has(r.entry)?'false':'true'}"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}</button>`).join('');
   document.querySelectorAll('#designs-legend button').forEach(bt=>bt.addEventListener('click',()=>{ const id=bt.dataset.id; desHidden.has(id)?desHidden.delete(id):desHidden.add(id); renderDesigns(); }));
