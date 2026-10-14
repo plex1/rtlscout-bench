@@ -51,6 +51,15 @@ def test_scale_exponent(value, exp):
     assert scale_exponent(value) == exp
 
 
+def test_row_labels_name_the_effort_and_the_language():
+    rec = dict(reasoning_effort="default", language="verilog")
+    assert tables._label("Model A", rec) == "Model A"
+    assert tables._label("Model A", dict(rec, reasoning_effort="high")) == "Model A · high effort"
+    assert tables._label("Model A", dict(rec, reasoning_effort="off")) == "Model A · thinking off"
+    assert tables._label("Model A", dict(rec, reasoning_effort="off", language="spirehdl")) == \
+        "Model A · thinking off · Spire HDL"
+
+
 def test_board_rows_are_ranked_and_labelled(bench, tmp_path):
     _three_runs(tmp_path, "model-a", (800.0, 700.0, 900.0))
     _three_runs(tmp_path, "model-a-high", (600.0, 650.0, 700.0), start="2026030211")

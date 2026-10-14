@@ -35,6 +35,9 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert {t.id for t in m.tasks.values() if not t.enabled} == {"qr-adp-fast", "tpu-area-at-500"}
     assert all(e.max_steps == 60 and e.repeats == 3 and e.agent_backend == "react" for e in m.entries)
     assert m.entry("kimi-k3-high").reasoning_effort == "high" and m.entry("kimi-k3").reasoning_effort == "default"
+    assert m.entry("glm-5.3-flash-high").reasoning_effort == "high"       # the second campaign (2026-10): effort rows
+    assert m.entry("glm-5.2-nothink").reasoning_effort == "off" and m.entry("glm-5.2").reasoning_effort == "default"
+    assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "coreweave") in m.entry("deepseek-v4.1-flash").env, "DeepSeek pinned too"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
     cap = ("RTLSCOUT_OPENROUTER_MAX_TOKENS", "65536")
     assert all(cap in e.env for e in m.entries), "every OpenRouter entry runs under the completion cap"
@@ -43,6 +46,13 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert m.tasks["tpu-adp"].flags == ("--skip-cec",) and m.tasks["qr-adp-fast"].heavy
     n_tasks = len(m.enabled_tasks())
     assert len(m.jobs()) == n_tasks * len(enabled) and sum(e.repeats for _, e in m.jobs()) == 3 * n_tasks * len(enabled)
+
+
+def test_a_bare_yaml_off_is_the_off_effort(bench):
+    Path("campaign_matrix.yaml").write_text(MATRIX.replace("reasoning_effort: high", "reasoning_effort: off"))
+    assert load_matrix().entry("model-a-high").reasoning_effort == "off"      # YAML parses a bare off as false
+    Path("campaign_matrix.yaml").write_text(MATRIX.replace("reasoning_effort: high", 'reasoning_effort: "off"'))
+    assert load_matrix().entry("model-a-high").reasoning_effort == "off"
 
 
 def test_defaults_are_applied_and_overridden(bench):

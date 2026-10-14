@@ -47,7 +47,7 @@ defaults:
   language: verilog
   repeats: 3
   max_steps: 60
-  reasoning_effort: default            # provider default; else low | medium | high -> RTLSCOUT_REASONING_EFFORT
+  reasoning_effort: default            # provider default; else low | medium | high | off -> RTLSCOUT_REASONING_EFFORT
   agent_backend: react                 # the built-in loop (the only backend the tooling accepts for now)
   flags: []                            # agent-side flags, added to the task's flags
   env:                                 # run conditions for every entry (an entry's own env adds to these)
@@ -68,6 +68,17 @@ entries:                               # open-weights models only, for now
   - id: glm-5.3-flash
     model: openrouter:z-ai/glm-5.3-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
+  - id: glm-5.3-flash-high             # same model one effort level below Z.AI's default (max); levels: low, high, max
+    model: openrouter:z-ai/glm-5.3-flash
+    reasoning_effort: high
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}
+  - id: glm-5.2-nothink                # GLM 5.2 with thinking switched off (its default at Z.AI is max; levels: high, max, off)
+    model: openrouter:z-ai/glm-5.2
+    reasoning_effort: "off"              # quoted: a bare off is a YAML boolean
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}
+  - id: deepseek-v4.1-flash            # DeepSeek's default effort is high (levels: low, high, max)
+    model: openrouter:deepseek/deepseek-v4.1-flash
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: coreweave}   # one fixed deployment (fp8) instead of OpenRouter's per-request routing
   - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
     model: openrouter:z-ai/glm-5.2
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)

@@ -51,10 +51,17 @@ def aggregate(records: list[dict]) -> dict | None:
                 usd=statistics.mean(usd) if usd else None, usd_sd=_sd(usd) if usd else None)
 
 
+def effort_label(effort: str) -> str:
+    """How a non-default reasoning effort reads in a row label: "high effort", "thinking off"; "" for default."""
+    if effort == "default":
+        return ""
+    return "thinking off" if effort == "off" else f"{effort} effort"
+
+
 def _label(name: str, rec: dict) -> str:
     parts = [name]
-    if rec["reasoning_effort"] != "default":
-        parts.append(f"{rec['reasoning_effort']} effort")
+    if effort_label(rec["reasoning_effort"]):
+        parts.append(effort_label(rec["reasoning_effort"]))
     if rec["language"] != "verilog":
         parts.append(LANGUAGE_LABEL.get(rec["language"], rec["language"]))
     return " · ".join(parts)
@@ -280,7 +287,7 @@ def render_head_to_head(board: dict) -> str:
         va, sa = v["agg"], s["agg"]
         lo, hi = sorted((sa["min"], va["min"]))
         win = ("Spire " if sa["min"] < va["min"] else "Verilog ") + pct(lo, hi)
-        name = v["name"] + ("" if effort == "default" else f" · {effort} effort")
+        name = v["name"] + (f" · {effort_label(effort)}" if effort_label(effort) else "")
         lines.append(f"| {name} | {fmt(bv)} / {fmt(bs)} | {fmt(va['min'])} ({fmt(va['median'])}) "
                      f"| {fmt(sa['min'])} ({fmt(sa['median'])}) | {pct(va['min'], bv)} / {pct(sa['min'], bs)} "
                      f"| {win} |")

@@ -21,7 +21,7 @@ DEFAULT_MATRIX = "campaign_matrix.yaml"
 
 LANGUAGE_SUFFIX = {"verilog": "_verilog", "spirehdl": "_spire"}
 LANGUAGE_LABEL = {"verilog": "Verilog", "spirehdl": "Spire HDL"}
-REASONING_EFFORTS = ("default", "low", "medium", "high")
+REASONING_EFFORTS = ("default", "low", "medium", "high", "off")   # off: thinking disabled (RTLSCOUT_REASONING_EFFORT=off)
 AGENT_BACKENDS = ("react",)
 
 # Scoring is a property of the task. These flags may only appear in a task; an entry that needs a different
@@ -261,6 +261,8 @@ def parse_matrix(raw, path: Path) -> Matrix:
             problems.append(f"{where}: language must be one of {', '.join(LANGUAGE_SUFFIX)}")
             language = "verilog"
         effort = merged.get("reasoning_effort", "default")
+        if effort is False:                      # YAML reads a bare `off` as a boolean; "off" (quoted) is the same setting
+            effort = "off"
         if effort not in REASONING_EFFORTS:
             problems.append(f"{where}: reasoning_effort must be one of {', '.join(REASONING_EFFORTS)}")
             effort = "default"

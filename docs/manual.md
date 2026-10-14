@@ -232,7 +232,7 @@ tasks
   tpu-adp            enabled   benchmark tpu           metric area_delay_product       --skip-cec
   jpeg-adp           enabled   benchmark jpeg_idct_2d  metric area_delay_product       --skip-cec
   pdpu-adp           enabled   benchmark pdpu_dot16_pipe metric area_delay_product       --skip-cec
-  fpmul-adp          enabled   benchmark fpmul_f16     metric area_delay_product
+  fpmul-adp          enabled   benchmark fpmul_f16     metric area_delay_product       --skip-cec
   qr-adp-fast        disabled  benchmark qr            metric area_delay_product_fast  --skip-cec RTLSCOUT_ADP_FAST_TIMEOUT=3600 heavy
   tpu-area-at-500    disabled  benchmark tpu           metric area                     target_delay=500 --skip-cec
 
@@ -242,6 +242,9 @@ entries
   nemotron-3-ultra           enabled   openrouter:nvidia/nemotron-3-ultra-550b-a55b   verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   kimi-k3-high               enabled   openrouter:moonshotai/kimi-k3                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.3-flash              enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
+  glm-5.3-flash-high         enabled   openrouter:z-ai/glm-5.3-flash                  verilog, 60 steps, effort high, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
+  glm-5.2-nothink            enabled   openrouter:z-ai/glm-5.2                        verilog, 60 steps, effort off, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
+  deepseek-v4.1-flash        enabled   openrouter:deepseek/deepseek-v4.1-flash        verilog, 60 steps, effort default, x3  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.2-spire              disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
   glm-5.2-spire-autoconfig   disabled  openrouter:z-ai/glm-5.2                        spirehdl, 60 steps, effort default, x3, --fsm-optimize --arith-autoconfig  -> tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp
 
@@ -266,8 +269,20 @@ jobs (enabled task x enabled entry)
   jpeg-adp / glm-5.3-flash                 benchmarks/jpeg_idct_2d_verilog 3 runs
   pdpu-adp / glm-5.3-flash                 benchmarks/pdpu_dot16_pipe_verilog 3 runs
   fpmul-adp / glm-5.3-flash                benchmarks/fpmul_f16_verilog 3 runs
+  tpu-adp / glm-5.3-flash-high             benchmarks/tpu_verilog       3 runs
+  jpeg-adp / glm-5.3-flash-high            benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / glm-5.3-flash-high            benchmarks/pdpu_dot16_pipe_verilog 3 runs
+  fpmul-adp / glm-5.3-flash-high           benchmarks/fpmul_f16_verilog 3 runs
+  tpu-adp / glm-5.2-nothink                benchmarks/tpu_verilog       3 runs
+  jpeg-adp / glm-5.2-nothink               benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / glm-5.2-nothink               benchmarks/pdpu_dot16_pipe_verilog 3 runs
+  fpmul-adp / glm-5.2-nothink              benchmarks/fpmul_f16_verilog 3 runs
+  tpu-adp / deepseek-v4.1-flash            benchmarks/tpu_verilog       3 runs
+  jpeg-adp / deepseek-v4.1-flash           benchmarks/jpeg_idct_2d_verilog 3 runs
+  pdpu-adp / deepseek-v4.1-flash           benchmarks/pdpu_dot16_pipe_verilog 3 runs
+  fpmul-adp / deepseek-v4.1-flash          benchmarks/fpmul_f16_verilog 3 runs
 
-OK: 4 enabled task(s), 5 enabled entries, 60 runs for a full campaign
+OK: 4 enabled task(s), 8 enabled entries, 96 runs for a full campaign
 ```
 
 A mistake is reported with every problem at once and exit status 2. This is what a misspelt reasoning effort and
@@ -275,7 +290,7 @@ a scoring flag on an entry look like (taken from a scratch matrix with invented 
 
 ```text
 campaign_matrix.yaml: invalid matrix
-  - entry model-a-high: reasoning_effort must be one of default, low, medium, high
+  - entry model-a-high: reasoning_effort must be one of default, low, medium, high, off
   - entry model-a-spire: --skip-netlist-sim is a scoring flag and belongs to the task, not to an entry (a different objective is a new task)
 ```
 
@@ -333,7 +348,7 @@ entries:
 | `language` | `verilog` | `verilog` or `spirehdl`. Selects the benchmark directory of the pair |
 | `repeats` | `3` | runs the entry should have per task |
 | `max_steps` | `60` | agent step budget, `--max-steps` |
-| `reasoning_effort` | `default` | `default` leaves the provider's default; `low`, `medium`, `high` set `RTLSCOUT_REASONING_EFFORT` |
+| `reasoning_effort` | `default` | `default` leaves the provider's default; `low`, `medium`, `high` set `RTLSCOUT_REASONING_EFFORT`; `"off"` (quoted, a bare `off` is a YAML boolean) disables thinking |
 | `agent_backend` | `react` | rtlscout's built-in loop; the only value accepted for now |
 | `flags` | `[]` | agent-side rtlscout flags, e.g. `--fsm-optimize`; appended to the task's flags. An entry's own list replaces the default list |
 | `env` | `{RTLSCOUT_OPENROUTER_MAX_TOKENS: "65536"}` | variables of the run, written into every record as conditions. An entry's own variables are added to the default ones (unlike `flags`, which replace them) |
@@ -344,7 +359,8 @@ entries:
 
 **The same model twice.** Two rows of one model are two entries with different ids, as `kimi-k3` and
 `kimi-k3-high` above. Their runs live in different directories and never mix. The page derives the row label
-from the model's display name plus what distinguishes the row ("Kimi K3 · high effort", "GLM 5.2 · Spire HDL").
+from the model's display name plus what distinguishes the row ("Kimi K3 · high effort", "GLM 5.2 · thinking off",
+"GLM 5.2 · Spire HDL").
 
 **The model also needs a row in `data/models.json`**: display name, vendor, `open_weights`, and list prices in
 USD per million tokens. Without prices the run is still recorded but has no dollar figure.
