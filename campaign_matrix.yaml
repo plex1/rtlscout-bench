@@ -79,6 +79,9 @@ entries:                               # open-weights models only, for now
   - id: deepseek-v4.1-flash            # DeepSeek's default effort is high (levels: low, high, max)
     model: openrouter:deepseek/deepseek-v4.1-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: coreweave}   # one fixed deployment (fp8) instead of OpenRouter's per-request routing
+  - id: mimo-v2.6-flash                # Xiaomi MiMo-V2.6-Flash (MIT weights); thinking is a toggle at Xiaomi, effort levels map onto it
+    model: openrouter:xiaomi/mimo-v2.6-flash
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: xiaomi}   # the vendor's own endpoint (fp8)
   - id: glm-5.2-spire                  # Spire HDL is just another entry; off at first
     model: openrouter:z-ai/glm-5.2
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
