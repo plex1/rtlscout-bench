@@ -120,6 +120,10 @@ def test_template_has_the_overall_view_with_its_score_switch():
     assert 'id="overall"' in TEMPLATE and 'id="ov-table"' in TEMPLATE and 'data-task="overall"' in TEMPLATE
     assert 'data-ov="rank"' in TEMPLATE and 'data-ov="score"' in TEMPLATE          # mean rank / headroom-normalized
     assert "D.overall" in TEMPLATE and 'data-view="overall"' in TEMPLATE
+    # the overall charts: every run as a dot, convergence, result vs. cost, all in headroom-normalized units
+    assert 'id="ov-strip"' in TEMPLATE and 'id="ov-conv"' in TEMPLATE and 'id="ov-scatter"' in TEMPLATE
+    assert 'data-ovagg="best"' in TEMPLATE and 'data-ovagg="median"' in TEMPLATE and 'data-ovagg="mean"' in TEMPLATE
+    assert "Best run per task" in TEMPLATE and "then the mean over the" in TEMPLATE       # the across-task mean is named
 
 
 def test_template_has_the_required_states_and_no_dropped_sections():

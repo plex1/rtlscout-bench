@@ -345,7 +345,11 @@ improved contributes 0). The page switches between the two; the *average reducti
 geometric mean over tasks of mean cost / start, informative only because it weights a task by its headroom.
 Entries with results on some tasks appear greyed below the ranked ones, with a penalized mean rank and score: a
 task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that
-task (0 or lower). Nothing in `data/` stores this table: it
+task (0 or lower). Below the table the overall view repeats the task pages' charts in headroom-normalized units
+(0 the starting design, 1 the best known mean of each task): every run as a dot, colored by task; the
+convergence of the score over steps or evaluations, aggregated within a task as the best run, the median or the
+mean of the entry's runs and then averaged over the tasks with equal weight; and the score against the mean API
+spend per run. Ranked entries only. Nothing in `data/` stores this table: it
 is derived from the task leaderboards at build time, and `publish` shows how the ranking would change.
 
 The first time a run of a new task is recorded, `data/leaderboards/<task>.json` is created with placeholder

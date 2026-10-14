@@ -180,6 +180,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <a class="brand" href="#"><img class="mark light" src="assets/rtlscout-mark-light.png" alt=""><img class="mark dark" src="assets/rtlscout-mark-dark.png" alt="">RTLScout <small>Bench</small></a>
   <nav id="nav">
     <a href="#overall" data-view="overall">Overall</a>
+    <a href="#ov-convergence" data-view="overall">Convergence</a>
+    <a href="#ov-cost" data-view="overall">Cost</a>
     <a href="#leaderboard" data-view="task">Leaderboard</a>
     <a href="#convergence" data-view="task">Convergence</a>
     <a href="#cost" data-view="task">Cost</a>
@@ -226,6 +228,40 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="card" style="margin-top:14px">
     <div class="tbl"><table id="ov-table"></table></div>
     <div class="cap" id="ov-cap"></div>
+  </div>
+  <div class="card" style="margin-top:20px">
+    <div class="chart" id="ov-strip"></div>
+    <div class="legend" id="ov-strip-legend"></div>
+    <div class="cap">Every run as a dot, in headroom-normalized units: 0 is the starting design of its task, 1 the best mean any ranked entry reached on that task. The dot's color is the task. The vertical bar is the mean over all runs of the entry, the thin line their standard deviation. Hover a dot for its run.</div>
+  </div>
+</div></section>
+
+<section id="ov-convergence" hidden><div class="wrap">
+  <div class="sec-head">
+    <div><h2>Convergence</h2><p id="ov-conv-desc"></p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Horizontal axis">
+        <button aria-pressed="true" data-ovx="step">By step</button>
+        <button aria-pressed="false" data-ovx="eval">By evaluation</button>
+      </div>
+      <div class="seg" role="group" aria-label="Aggregation within a task">
+        <button aria-pressed="false" data-ovagg="best">Best run per task</button>
+        <button aria-pressed="true" data-ovagg="median">Median per task</button>
+        <button aria-pressed="false" data-ovagg="mean">Mean per task</button>
+      </div>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="chart" id="ov-conv"></div>
+    <div class="legend" id="ov-conv-legend"></div>
+  </div>
+</div></section>
+
+<section id="ov-cost" hidden><div class="wrap">
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Headroom-normalized score, the mean over the tasks, against the mean API spend per run across the tasks, at list prices from each run's recorded token usage.</p></div></div>
+  <div class="card" style="margin-top:14px">
+    <div class="chart" id="ov-scatter"></div>
+    <div class="cap">Vertical bars span one standard deviation of the per-task scores, horizontal bars one standard deviation of the per-task mean spend.</div>
   </div>
 </div></section>
 
@@ -329,6 +365,8 @@ let T = D.tasks[0];
 const OV = D.overall && D.tasks.length > 1 ? D.overall : null;   // the table across tasks, built by the site generator
 let view = OV ? 'overall' : 'task';                              // the page opens on the overall table
 let ovMode = 'rank';                                             // 'rank' (mean rank) or 'score' (headroom-normalized)
+let ovX = 'step', ovAgg = 'median';                              // the overall convergence chart: axis and within-task aggregation
+const ovHidden = new Set();
 let convAgg = 'median', convX = 'step';
 const hidden = new Set();
 const tip = $('tip');
@@ -444,6 +482,142 @@ function renderOverall(){
     + `<b>Avg. reduction</b> is the geometric mean over tasks of mean cost / starting point, shown for information: it weights a task by its headroom. Per task: the rank among the ranked entries and the mean relative to the starting design. `
     + `Only entries with results on every task are ranked. The greyed rows are partial: their value is penalized (‡), a task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that task, 0 or lower; on the tasks they ran, the rank is the position they would take among the ranked entries. $/run is the mean API cost per run across the tasks. `
     + `Three runs per task and entry, so neighbouring positions are often within noise; the task set defines the score.`;
+}
+
+/* ---------- overall charts: headroom-normalized units, complete entries only ---------- */
+const OV_T = () => OV.tasks.map(t=>D.tasks.find(x=>x.id===t.task)).filter(Boolean);
+function ovRef(){                        // per task: the starting design and the best mean among the ranked entries
+  const ref = {};
+  const complete = OV.rows.filter(r=>r.complete);
+  OV_T().forEach(t=>{
+    const lang = (complete[0] && (t.rows.find(r=>r.entry===complete[0].entry)||{}).language) || 'verilog';
+    const start = (t.baselines[lang]||{}).cost;
+    const best = Math.min(...complete.map(r=>r.cells[t.id].mean));
+    ref[t.id] = {start, headroom: start && best < start ? start - best : 0};
+  });
+  return ref;
+}
+const ovScore = (ref, task, cost) => cost==null || !ref[task].headroom ? 0 : (ref[task].start - cost) / ref[task].headroom;
+const ovAggFn = vals => { if(!vals.length) return null; if(ovAgg==='mean') return vals.reduce((a,b)=>a+b,0)/vals.length; if(ovAgg==='best') return Math.max(...vals); vals.sort((a,b)=>a-b); const k=vals.length; return k%2?vals[(k-1)/2]:(vals[k/2-1]+vals[k/2])/2; };
+const ovColor = {};
+const taskColor = {};
+function ovAssignColors(){
+  OV.rows.filter(r=>r.complete).forEach((r,i)=>ovColor[r.entry]=`var(${SERIES[i%SERIES.length]})`);
+  OV.tasks.forEach((t,i)=>taskColor[t.task]=`var(${SERIES[(i+3)%SERIES.length]})`);
+}
+function ovRunsOf(entry, task){ const row = task.rows.find(r=>r.entry===entry); return row ? row.runs : []; }
+
+function renderOvStrip(){
+  const ref = ovRef(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
+  const W=960, ml=230, mr=40, rowH=34, mt=28, mb=46, H=mt+R.length*rowH+mb;
+  const pts = R.map(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t).map(run=>({r, t, run, v: ovScore(ref, t.id, run.best_cost)}))));
+  const all = pts.flat().map(p=>p.v).concat([0, 1]);
+  const ax = niceTicks(Math.min(...all), Math.max(...all), 7), x0=ax.lo, x1=ax.hi;
+  const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr);
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Per-run headroom-normalized score by entry'});
+  ax.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'grid'})); svg.appendChild(txt(X(v),H-mb+16,v.toFixed(ax.dec),{'text-anchor':'middle'})); });
+  svg.appendChild(txt(ml,H-6,'headroom-normalized score (0 = start, 1 = best known) →'));
+  [[0,'start'],[1,'best known']].forEach(([v,l])=>{ svg.appendChild(el('line',{x1:X(v),x2:X(v),y1:mt-6,y2:H-mb,class:'ref'})); svg.appendChild(txt(X(v),mt-12,l,{'text-anchor':'middle'})); });
+  pts.forEach((ps,i)=>{
+    const y = mt + i*rowH + rowH/2, vals = ps.map(p=>p.v);
+    const mean = vals.reduce((a,b)=>a+b,0)/vals.length, sd = vals.length>1 ? Math.sqrt(vals.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(vals.length-1)) : 0;
+    svg.appendChild(txt(ml-12,y+4,ps[0].r.label,{class:'lbl','text-anchor':'end'}));
+    svg.appendChild(el('line',{x1:X(mean-sd),x2:X(mean+sd),y1:y,y2:y,class:'sdbar'}));
+    ps.forEach(p=>{
+      const c = el('circle',{cx:X(p.v),cy:y,r:6,class:'dot',style:`fill:${taskColor[p.t.id]}`});
+      const hit = el('circle',{cx:X(p.v),cy:y,r:12,class:'hit'});
+      bindTip(hit,`<b>${esc(p.r.label)}</b> · ${esc(p.t.title)} · ${esc(p.run.id)}<br>score <b>${p.v.toFixed(2)}</b> · cost ${p.run.best_cost==null?'no passing design':Number(p.run.best_cost).toLocaleString('en-US',{maximumFractionDigits:0})} vs. start ${Number(ref[p.t.id].start).toLocaleString('en-US',{maximumFractionDigits:0})}`);
+      svg.appendChild(c); svg.appendChild(hit);
+    });
+    svg.appendChild(el('line',{x1:X(mean),x2:X(mean),y1:y-10,y2:y+10,class:'mean'}));
+  });
+  const host=$('ov-strip'); host.innerHTML=''; host.appendChild(svg);
+  $('ov-strip-legend').innerHTML = tasks.map(t=>`<span><span class="sw" style="background:${taskColor[t.id]}"></span>${esc(t.title)}</span>`).join('');
+}
+
+function renderOvConv(){
+  const ref = ovRef(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
+  document.querySelectorAll('.seg button[data-ovx]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ovx===ovX?'true':'false'));
+  document.querySelectorAll('.seg button[data-ovagg]').forEach(b=>b.setAttribute('aria-pressed',b.dataset.ovagg===ovAgg?'true':'false'));
+  const byStep = ovX==='step';
+  const allRuns = R.flatMap(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t)));
+  const n = Math.max(2, ...allRuns.map(run=>byStep ? (run.steps!=null ? run.steps : Math.max(...run.traj.filter(x=>x.s!=null).map(x=>x.s),0)) : run.n_evals));
+  const xs = Array.from({length:n},(_,i)=>i+1);
+  // per entry: within each task aggregate the runs' best-so-far score at x (start = 0 until the first passing design), then the mean over the tasks
+  const series = R.map(r=>{
+    const perTask = tasks.map(t=>{
+      const runs = ovRunsOf(r.entry, t);
+      const mats = runs.map(run=>(byStep ? bestByStep(run,n) : bestByEval(run,n)).map(c=>ovScore(ref, t.id, c==null ? ref[t.id].start : c)));
+      return xs.map((_,j)=>ovAggFn(mats.map(m=>m[j])));
+    });
+    const y = xs.map((_,j)=>{ const v = perTask.map(p=>p[j]).filter(v=>v!=null); return v.length===tasks.length ? v.reduce((a,b)=>a+b,0)/v.length : null; });
+    return {r, y};
+  });
+  const ys = series.flatMap(s=>s.y.filter(v=>v!=null)).concat([0,1]);
+  const W=960, ml=56, mr=190, mt=24, mb=36, H=360;
+  const ay = niceTicks(Math.min(...ys), Math.max(...ys), 6), y0=ay.lo, y1=ay.hi;
+  const X = v => ml + (v-1)/(n-1)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
+  const aggName = {best:'best run per task', median:'median per task', mean:'mean per task'}[ovAgg];
+  $('ov-conv-desc').textContent = `Best verified score reached so far, ${byStep ? 'per agent step' : 'per evaluation'}: within each task the ${aggName} across the entry's runs, then the mean over the ${tasks.length} tasks with equal weight. Headroom-normalized units: 0 is the starting design, 1 the best known mean on each task. Ranked entries only.`;
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Headroom-normalized score so far, mean over tasks'});
+  ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
+  const st = n>60?10:5; for(let e=st;e<=n;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'}));
+  svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
+  svg.appendChild(txt(ml,H-4, byStep ? 'step →' : 'evaluation number →'));
+  svg.appendChild(txt(ml-8,mt-8,'score',{'text-anchor':'end'}));
+  [[0,'start'],[1,'best known']].forEach(([v,l])=>{ if(v>=y0&&v<=y1){ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'ref'})); svg.appendChild(txt(W-mr+8,Y(v)+4,l,{})); } });
+  const ends = series.filter(s=>!ovHidden.has(s.r.entry)).map(s=>{ let last=null; for(const v of s.y) if(v!=null) last=v; return {s, y: last==null?0:Y(last), v:last}; }).filter(e=>e.v!=null).sort((a,b)=>a.y-b.y);
+  for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<13) ends[i].y=ends[i-1].y+13;
+  series.forEach(s=>{
+    if(ovHidden.has(s.r.entry)) return;
+    const pts = s.y.map((v,i)=>v==null?null:[X(xs[i]),Y(v)]).filter(Boolean);
+    if(pts.length>1) svg.appendChild(el('path',{d:pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(''),fill:'none',stroke:ovColor[s.r.entry],'stroke-width':2,'stroke-linejoin':'round'}));
+    const e = ends.find(x=>x.s===s); if(e) svg.appendChild(txt(W-mr+8,e.y+4,`${s.r.label} ${e.v.toFixed(2)}`,{class:'lbl'}));
+  });
+  const hit = el('rect',{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb,class:'hit'});
+  const cursor = el('line',{x1:0,x2:0,y1:mt,y2:H-mb,class:'ref',visibility:'hidden'});
+  svg.appendChild(cursor); svg.appendChild(hit);
+  hit.addEventListener('mousemove',ev=>{
+    const pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
+    const j = Math.max(0,Math.min(n-1,Math.round((p.x-ml)/(W-ml-mr)*(n-1))));
+    cursor.setAttribute('x1',X(xs[j])); cursor.setAttribute('x2',X(xs[j])); cursor.setAttribute('visibility','visible');
+    const lines = series.filter(s=>!ovHidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>b.y[j]-a.y[j]).map(s=>`<span class="sw" style="background:${ovColor[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(2)}</span>`).join('<br>');
+    showTip(ev,`<b>after ${byStep?'step':'evaluation'} ${xs[j]}</b> · ${esc(aggName)}, mean over tasks<br>${lines}`);
+  });
+  hit.addEventListener('mouseleave',()=>{cursor.setAttribute('visibility','hidden');hideTip();});
+  const host=$('ov-conv'); host.innerHTML=''; host.appendChild(svg);
+  $('ov-conv-legend').innerHTML = R.map(r=>`<button data-id="${esc(r.entry)}" aria-pressed="${ovHidden.has(r.entry)?'false':'true'}"><span class="sw" style="background:${ovColor[r.entry]}"></span>${esc(r.label)}</button>`).join('');
+  document.querySelectorAll('#ov-conv-legend button').forEach(bt=>bt.addEventListener('click',()=>{ const id=bt.dataset.id; ovHidden.has(id)?ovHidden.delete(id):ovHidden.add(id); renderOvConv(); }));
+}
+
+function renderOvScatter(){
+  const tasks = OV_T(), R = OV.rows.filter(r=>r.complete && r.usd_total!=null);
+  show('ov-cost', R.length>0);
+  if(!R.length) return;
+  const sdOf = vals => { const m = vals.reduce((a,b)=>a+b,0)/vals.length; return vals.length>1 ? Math.sqrt(vals.reduce((a,b)=>a+(b-m)*(b-m),0)/(vals.length-1)) : 0; };
+  const P = R.map(r=>{ const sc = tasks.map(t=>r.cells[t.id].score), us = tasks.map(t=>r.cells[t.id].usd).filter(v=>v!=null); return {r, x:r.usd_total/tasks.length, y:r.score, sx:sdOf(us), sy:sdOf(sc)}; });
+  const W=960, ml=56, mr=30, mt=24, mb=40, H=340;
+  const ax = niceTicks(0, Math.max(...P.map(p=>p.x+p.sx))*1.08, 8);
+  const ay = niceTicks(Math.min(0, ...P.map(p=>p.y-p.sy)), Math.max(1, ...P.map(p=>p.y+p.sy)), 6);
+  const x0=0, x1=ax.hi, y0=ay.lo, y1=ay.hi;
+  const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
+  const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Mean headroom-normalized score versus dollars per run'});
+  ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
+  ax.ticks.forEach(v=>svg.appendChild(txt(X(v),H-mb+16,'$'+v.toFixed(ax.dec),{'text-anchor':'middle'})));
+  svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:H-mb,y2:H-mb,class:'axis'}));
+  svg.appendChild(txt(ml,H-6,'API cost per run, USD, mean over tasks →')); svg.appendChild(txt(ml-8,mt-8,'score',{'text-anchor':'end'}));
+  [[0,'start'],[1,'best known']].forEach(([v,l])=>{ if(v>=y0&&v<=y1){ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'ref'})); svg.appendChild(txt(W-mr,Y(v)-5,l,{'text-anchor':'end'})); } });
+  P.forEach(p=>{
+    const x=X(p.x), y=Y(p.y);
+    svg.appendChild(el('line',{x1:X(Math.max(0,p.x-p.sx)),x2:X(p.x+p.sx),y1:y,y2:y,class:'sdbar'}));
+    svg.appendChild(el('line',{x1:x,x2:x,y1:Y(Math.min(y1,p.y+p.sy)),y2:Y(Math.max(y0,p.y-p.sy)),class:'sdbar'}));
+    svg.appendChild(el('circle',{cx:x,cy:y,r:7,class:'dot',style:`fill:${ovColor[p.r.entry]}`}));
+    svg.appendChild(txt(x+11,y+4,p.r.label,{class:'lbl'}));
+    const hit = el('circle',{cx:x,cy:y,r:14,class:'hit'});
+    bindTip(hit,`<b>${esc(p.r.label)}</b><br>score ${p.y.toFixed(2)} ± ${p.sy.toFixed(2)} over tasks · $${p.x.toFixed(1)} ± ${p.sx.toFixed(1)} per run`);
+    svg.appendChild(hit);
+  });
+  const host=$('ov-scatter'); host.innerHTML=''; host.appendChild(svg);
 }
 
 /* ---------- leaderboard table ---------- */
@@ -661,10 +835,15 @@ function renderAll(){
   renderHero();
   document.querySelectorAll('#nav a[data-view]').forEach(a=>{ a.hidden = a.dataset.view !== view; });
   if(view==='overall'){
-    show('overall', true); show('content', false); show('empty', false); $('nav').hidden = false;
-    renderOverall(); return;
+    show('overall', true); show('ov-convergence', true); show('content', false); show('empty', false); $('nav').hidden = false;
+    ovAssignColors(); ovHidden.clear();
+    renderOverall();
+    const ranked = OV.rows.some(r=>r.complete);
+    show('ov-convergence', ranked); show('ov-cost', ranked); $('ov-strip').parentElement.hidden = !ranked;
+    if(ranked){ renderOvStrip(); renderOvConv(); renderOvScatter(); }
+    return;
   }
-  show('overall', false);
+  show('overall', false); show('ov-convergence', false); show('ov-cost', false);
   const has = rows().length > 0;
   show('content', has); show('empty', !has); $('nav').hidden = !has;
   if(!has){ $('empty-title').textContent = 'No results yet'; $('empty-text').textContent = `No run has been published for ${T.title} yet. Results appear here once the first campaign is recorded and published.`; return; }
@@ -682,6 +861,8 @@ if(D.tasks.length > 1){
   }));
 }
 document.querySelectorAll('.seg button[data-ov]').forEach(bt=>bt.addEventListener('click',()=>{ ovMode = bt.dataset.ov; renderOverall(); }));
+document.querySelectorAll('.seg button[data-ovx]').forEach(bt=>bt.addEventListener('click',()=>{ ovX = bt.dataset.ovx; renderOvConv(); }));
+document.querySelectorAll('.seg button[data-ovagg]').forEach(bt=>bt.addEventListener('click',()=>{ ovAgg = bt.dataset.ovagg; renderOvConv(); }));
 document.querySelectorAll('.seg button[data-agg]').forEach(bt=>bt.addEventListener('click',()=>{
   convAgg = bt.dataset.agg; document.querySelectorAll('.seg button[data-agg]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();
 }));
