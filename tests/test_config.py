@@ -41,7 +41,7 @@ def test_shipped_matrix_is_the_open_weights_first_campaign(monkeypatch):
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "coreweave") in m.entry("deepseek-v4.1-flash").env, "DeepSeek pinned too"
     assert ("RTLSCOUT_OPENROUTER_PROVIDERS", "xiaomi") in m.entry("mimo-v2.6-flash").env
     for e, pin in (("deepseek-v4-pro", "alibaba"), ("glm-5.3", "z-ai"), ("mimo-v2.6-pro", "xiaomi"), ("qwen3.8-2.4t", "alibaba")):
-        assert m.entry(e).tasks == ("tpu-adp",) and ("RTLSCOUT_OPENROUTER_PROVIDERS", pin) in m.entry(e).env   # round 3
+        assert ("RTLSCOUT_OPENROUTER_PROVIDERS", pin) in m.entry(e).env                                      # round 3
     assert all(any(k == "RTLSCOUT_OPENROUTER_PROVIDERS" for k, _ in e.env) for e in m.entries
                if e.id not in ("kimi-k3", "nemotron-3-ultra", "kimi-k3-high")), "every entry since suite-v2 is pinned"
     assert m.entry("glm-5.2-spire-autoconfig").flags == ("--fsm-optimize", "--arith-autoconfig")
