@@ -936,7 +936,6 @@ function renderMethod(){
   const noted = T.rows.filter(r=>r.runs.length);
   if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
   if(T.footnotes && T.footnotes.length) h += '<p style="margin-top:14px"><strong>Notes</strong></p><ul>' + T.footnotes.map(f=>`<li>${esc(f)}</li>`).join('') + '</ul>';
-  if(T.excluded && T.excluded.length) h += '<p style="margin-top:14px"><strong>Runs not counted</strong></p><p>Recorded like every other run (record, best design, transcript) but left out of the row statistics for the reason given.</p><ul>' + T.excluded.map(x=>`<li>${runLink({path:`runs/${T.id}/${x.entry}/${x.run}`})}${x.cost!=null?' ('+fmtC(x.cost)+')':''}: ${esc(x.reason)}</li>`).join('') + '</ul>';
   $('fn').innerHTML = h;
 }
 
