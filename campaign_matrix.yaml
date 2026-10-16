@@ -32,7 +32,7 @@ tasks:
     benchmark: cv32e40p_alu                # -> benchmarks/cv32e40p_alu_verilog (Verilog only)
     cost_metric: area_delay_product        # cycles are pinned to upstream's by the testbench, so area x delay is the whole picture
     flags: [--skip-cec]
-    enabled: false                     # switched on with the campaign that runs every entry on it
+    enabled: true                      # enabled 2026-10-16 with the campaign that runs every entry on it
   qr-adp-fast:                         # a different metric for a heavy design
     benchmark: qr
     cost_metric: area_delay_product_fast
@@ -48,7 +48,7 @@ tasks:
     enabled: false
 
 defaults:
-  tasks: [tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp]   # what every entry runs unless it lists its own
+  tasks: [tpu-adp, jpeg-adp, pdpu-adp, fpmul-adp, alu-adp]   # what every entry runs unless it lists its own
   language: verilog
   repeats: 3
   max_steps: 60
