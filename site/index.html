@@ -866,10 +866,11 @@ function renderDesigns(){
       if(seg.length>1){ svg.appendChild(el('path',{d:seg.map((q,i)=>(i?'L':'M')+q[0].toFixed(1)+' '+q[1].toFixed(1)).join(''),fill:'none',class:'iso','clip-path':'url(#des-clip)'})); const e=seg[0]; svg.appendChild(txt(e[0]+4,e[1]-4,l,{class:'isolbl'})); }
     });
   }
-  // the Pareto front of all passing designs: no other design has both less area and less delay
+  // the Pareto front of all passing designs: no other design has both less area and less delay. Drawn as a staircase
+  // bounding the dominated region: along the current delay to the next design's area, then down to its delay
   const vis = pts.filter(q=>!desHidden.has(q.r.entry));
   const front = vis.filter(q=>!vis.some(o=>o!==q && o.p.a<=q.p.a && o.p.d<=q.p.d && (o.p.a<q.p.a || o.p.d<q.p.d))).sort((a,b)=>a.p.a-b.p.a);
-  if(front.length>1) svg.appendChild(el('path',{d:front.map((q,i)=>(i?`V${Y(q.p.d).toFixed(1)}H${X(q.p.a).toFixed(1)}`:`M${X(q.p.a).toFixed(1)} ${Y(q.p.d).toFixed(1)}`)).join(''),fill:'none',class:'pareto'}));
+  if(front.length>1) svg.appendChild(el('path',{d:front.map((q,i)=>(i?`H${X(q.p.a).toFixed(1)}V${Y(q.p.d).toFixed(1)}`:`M${X(q.p.a).toFixed(1)} ${Y(q.p.d).toFixed(1)}`)).join(''),fill:'none',class:'pareto'}));
   vis.filter(inRange).forEach(q=>{
     const c = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:q.best?6:3.5,class:'dot',style:`fill:${colorOf[q.r.entry]};${q.best?'':'opacity:.55;stroke-width:1'}`});
     const hit = el('circle',{cx:X(q.p.a),cy:Y(q.p.d),r:9,class:'hit'});
