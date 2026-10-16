@@ -65,6 +65,9 @@ How the testbench drives the design:
     divisor and dividend bit length, and 1,000,000 random operations generated in
     the testbench from a fixed seed, all within the driven envelope below.
     Correctness is judged solely by this testbench.
+  * tb.sv and vectors.dat sit in your workspace for reference. The second half of
+    tb.sv is a renamed copy of starting_point.sv (the reference model); there is
+    nothing new to learn from reading it.
 
 Opcode encodings (operator_i, 7-bit). Only these 57 values are ever driven; the
 behavior for any other encoding is a don't-care:
