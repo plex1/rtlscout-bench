@@ -1,0 +1,212 @@
+Optimize the execution-stage ALU of the CV32E40P (RI5CY) RISC-V core: a module
+named cv32e40p_alu implementing the full RV32IM ALU operation set plus the PULP
+(XPULP) extensions: SIMD vector modes, bit-manipulation, bit-counting,
+shuffle/pack, clip, and a multi-cycle serial integer divider behind a ready
+handshake.
+
+A complete, known-correct implementation is provided in your workspace as
+starting_point.sv: the upstream CV32E40P ALU flattened into one self-contained
+file (top module cv32e40p_alu plus its popcount, find-first-one and serial-divider
+submodules; package constants inlined). Start from it and optimize. Any
+restructuring is legal as long as the I/O behaviour stays cycle-identical to it:
+re-associating or factoring arithmetic, sharing or splitting datapaths, cheaper
+operator implementations, a different divider architecture with the same cycle
+count, and so on.
+
+Ports:
+  input         clk                  // rising-edge clock (used only by div/rem)
+  input         rst_n                // active-low reset
+  input         enable_i             // operation strobe (relevant for div/rem)
+  input  [6:0]  operator_i           // ALU opcode, encodings below
+  input  [31:0] operand_a_i
+  input  [31:0] operand_b_i
+  input  [31:0] operand_c_i
+  input  [1:0]  vector_mode_i        // 2'b00: one 32-bit lane, 2'b10: two 16-bit
+                                     // lanes, 2'b11: four 8-bit lanes
+  input  [4:0]  bmask_a_i            // bit-mask length-1 / rounding control
+  input  [4:0]  bmask_b_i            // bit-mask offset / round-shift amount
+  input  [1:0]  imm_vec_ext_i        // lane selector for EXT/EXTS/INS
+  input         is_clpx_i            // complex-arithmetic modifier
+  input         is_subrot_i          // sub-rotate modifier (SUB only)
+  input  [1:0]  clpx_shift_i         // post-shift amount when is_clpx_i
+  output [31:0] result_o
+  output        comparison_result_o  // scalar flag of comparison ops
+  output        ready_o              // result handshake (see protocol)
+  input         ex_ready_i           // downstream ready
+
+Contract (checked by the testbench, an equivalence checker): your design runs
+side by side with the upstream ALU on the same stimulus. At every falling clock
+edge after reset, ready_o must equal the upstream ALU's ready_o; whenever the
+upstream ALU is ready, result_o must equal its result, and comparison_result_o
+as well for the 14 comparison opcodes (for every other opcode that output is a
+don't-care). Concretely:
+  * Every opcode except DIV/DIVU/REM/REMU is combinational in the starting point:
+    ready_o is high at the first falling edge after the inputs are applied, and
+    high in the idle state. It must stay that way: a design that registers these
+    results and answers a cycle later fails, however correct the values.
+  * DIV/DIVU/REM/REMU take several cycles: ready_o must fall and rise in exactly
+    the cycles of the starting point's divider. Its latency is data dependent
+    (it depends on the leading bits of the divisor operand_a_i and on the
+    signedness of the operation; see cv32e40p_alu_div and the div_shift
+    computation in starting_point.sv). A faster or slower divider fails.
+  * A div/rem computation must not disturb later back-to-back operations.
+
+How the testbench drives the design:
+  * rst_n is held low for the first 5 clock cycles, then stays high. A synchronous
+    or asynchronous active-low reset are both acceptable.
+  * For each operation, all inputs are driven at a falling clock edge with
+    enable_i=1 and ex_ready_i=1 and are held stable; ready_o is then sampled at
+    each following falling edge (cap 64 cycles) and compared with the upstream
+    ALU's. At the first falling edge where the upstream ALU is ready, result_o
+    (and comparison_result_o where applicable) are compared. After sampling,
+    enable_i is deasserted for one cycle before the next operation is applied.
+  * Stimulus: the 20,000 vectors of vectors.dat (directed corner cases and
+    seeded random operations, 15% div/rem), a sweep of the divider over every
+    divisor and dividend bit length, and 1,000,000 random operations generated in
+    the testbench from a fixed seed, all within the driven envelope below.
+    Correctness is judged solely by this testbench.
+
+Opcode encodings (operator_i, 7-bit). Only these 57 values are ever driven; the
+behavior for any other encoding is a don't-care:
+
+  Adder family:      ADD  7'b0011000  SUB  7'b0011001  ADDU 7'b0011010  SUBU 7'b0011011
+                     ADDR 7'b0011100  SUBR 7'b0011101  ADDUR 7'b0011110 SUBUR 7'b0011111
+  Logic:             AND 7'b0010101   OR 7'b0101110    XOR 7'b0101111
+  Shifts:            SRA 7'b0100100   SRL 7'b0100101   ROR 7'b0100110   SLL 7'b0100111
+  Bit-manipulation:  BEXT 7'b0101000  BEXTU 7'b0101001 BINS 7'b0101010
+                     BCLR 7'b0101011  BSET 7'b0101100  BREV 7'b1001001
+  Bit-count:         FF1 7'b0110110   FL1 7'b0110111   CNT 7'b0110100   CLB 7'b0110101
+  Extract/insert:    EXTS 7'b0111110  EXT 7'b0111111   INS 7'b0101101
+  Vector compare:    LTS 7'b0000000   LTU 7'b0000001   LES 7'b0000100   LEU 7'b0000101
+                     GTS 7'b0001000   GTU 7'b0001001   GES 7'b0001010   GEU 7'b0001011
+                     EQ  7'b0001100   NE  7'b0001101
+  Scalar set-less:   SLTS 7'b0000010  SLTU 7'b0000011  SLETS 7'b0000110 SLETU 7'b0000111
+  Min/max/abs/clip:  MIN 7'b0010000   MINU 7'b0010001  MAX 7'b0010010   MAXU 7'b0010011
+                     ABS 7'b0010100   CLIP 7'b0010110  CLIPU 7'b0010111
+  Shuffle/pack:      SHUF 7'b0111010  SHUF2 7'b0111011 PCKLO 7'b0111000 PCKHI 7'b0111001
+  Serial divider:    DIVU 7'b0110000  DIV 7'b0110001   REMU 7'b0110010  REM 7'b0110011
+
+Vector (SIMD) lanes: vector_mode_i partitions the 32-bit datapath into one 32-bit,
+two 16-bit, or four 8-bit independent lanes (2'b01 is never driven). "Per lane"
+below means the operation is applied independently in each lane of a and b.
+
+Semantics by group ("s" = two's-complement signed, "u" = unsigned):
+
+* Adder family (per lane): SUB/SUBU/SUBR/SUBUR compute a-b, the others a+b.
+  The lane results are then post-processed on the concatenated 32-bit value:
+    1. A rounding constant is added (plain 32-bit add, carries may cross lanes):
+       for ADDR/SUBR/ADDUR/SUBUR the constant is bmask>>1 where
+       bmask = (~(32'hFFFFFFFE << bmask_a_i)) << bmask_b_i
+       (a run of bmask_a_i+1 ones starting at bit bmask_b_i); for
+       ADD/SUB/ADDU/SUBU the constant is 0.
+    2. The sum is right-shifted per lane: arithmetically for ADD/SUB/ADDR/SUBR,
+       logically for the U variants. The per-lane shift amount is normally
+       bmask_b_i (truncated to the lane's amount width: 5/4/3 bits for
+       32/16/8-bit lanes); when is_clpx_i=1 it is clpx_shift_i instead.
+  With bmask_a_i=bmask_b_i=0 (the common case) this is a plain per-lane add/sub.
+  is_subrot_i=1 (only ever driven with SUB, two 16-bit lanes): before the
+  subtraction the operands' halves are cross-swapped: the effective operands are
+  {b[15:0], a[31:16]} minus {a[15:0], b[31:16]} (per-lane 16-bit subtraction) —
+  i.e. result high half = b_lo - a_lo, low half = a_hi - b_hi.
+
+* Logic: AND = a&b, OR = a|b, XOR = a^b (lane-independent).
+
+* Shifts (per lane): SLL logical left, SRL logical right, SRA arithmetic right.
+  Per-lane shift amounts come from the corresponding lane of operand_b_i,
+  truncated to 5/4/3 bits for 32/16/8-bit lanes (e.g. in 32-bit mode: b[4:0];
+  in 16-bit mode: lane 0 uses b[3:0], lane 1 uses b[19:16]).
+  ROR in 32-bit mode rotates a right by b[4:0]. (In 16/8-bit vector modes ROR
+  is driven but degenerates to a per-lane logical right shift, matching the
+  shared shifter datapath.)
+
+* Vector comparisons (per lane): LTS/LTU a<b, LES/LEU a<=b, GTS/GTU a>b,
+  GES/GEU a>=b (S = signed, U = unsigned), EQ a==b, NE a!=b.
+  result_o: each lane is filled with all-ones if the lane comparison is true,
+  else all-zeros. comparison_result_o = the result of the most-significant lane
+  (the whole-word result in 32-bit mode).
+  Scalar set-less (32-bit only): SLTS/SLTU (a<b), SLETS/SLETU (a<=b);
+  result_o = {31'b0, flag} and comparison_result_o = flag.
+  comparison_result_o is only checked for these 14 comparison opcodes; for every
+  other opcode it is a don't-care.
+
+* MIN/MINU/MAX/MAXU (per lane): minimum / maximum of a and b (signed for
+  MIN/MAX, unsigned for MINU/MAXU).
+
+* ABS (per lane; operand_b_i is always 0 for ABS): |a| (two's-complement
+  negation of negative lanes; the most negative value wraps to itself).
+  With is_clpx_i=1 (driven only in 16-bit mode): complex conjugate —
+  result = {-a[31:16], a[15:0]}.
+
+* CLIP/CLIPU (32-bit only, any operand_b_i value; in practice b = 2^k - 1):
+  Let lo = ~b (i.e. -(b+1)) and hi = b, as signed values.
+    CLIP:  if a <s lo or a == lo -> lo; else if a >s hi -> hi (signed min of
+           a and b); else a. I.e. clamp(a, ~b, b) for b >= 0.
+    CLIPU: if a <=s 0 -> 0; else signed-min(a, b).
+
+* Extract/insert (16/8-bit vector modes only; operand_c_i is always 0 for
+  EXT/EXTS): sel = imm_vec_ext_i (2 bits in 8-bit mode, only bit 0 in 16-bit
+  mode).
+    EXT:  zero-extend lane sel of a to 32 bits.
+    EXTS: sign-extend lane sel of a to 32 bits.
+    INS:  result = operand_c_i with lane sel replaced by the low lane of a
+          (a[7:0] in 8-bit mode, a[15:0] in 16-bit mode).
+
+* Shuffle/pack (16/8-bit vector modes only). Notation: x.B[i] = byte i of x,
+  x.H[i] = 16-bit half i of x.
+    SHUF  8-bit:  result.B[k] = a.B[ b.B[k][1:0] ]           for k=3..0
+    SHUF  16-bit: result.H[k] = a.H[ b.H[k][0] ]             for k=1..0
+    SHUF2 8-bit:  result.B[k] = (b.B[k][2] ? a : c).B[ b.B[k][1:0] ]
+    SHUF2 16-bit: result.H[k] = (b.H[k][1] ? a : c).H[ b.H[k][0] ]
+    PCKLO 16-bit: {a[15:0],  b[15:0]}
+    PCKHI 16-bit: {a[31:16], b[31:16]}
+    PCKLO 8-bit:  {c[31:16], a[7:0], b[7:0]}
+    PCKHI 8-bit:  {a[7:0], b[7:0], c[15:0]}
+
+* Bit-manipulation (32-bit mode only). Define
+  bmask = (~(32'hFFFFFFFE << bmask_a_i)) << bmask_b_i (a run of bmask_a_i+1
+  ones starting at bit bmask_b_i, truncated at bit 31).
+    BCLR:  a & ~bmask
+    BSET:  a | bmask
+    BEXTU: (a >> b[4:0]) & bmask                      (logical shift)
+    BEXT:  t = a >>> b[4:0] (arithmetic shift);
+           result = (t & bmask) | ({32{t[bmask_a_i]}} & ~bmask)
+           (extract then sign-extend from bit bmask_a_i)
+    BINS:  ((a << b[4:0]) & bmask) | (c & ~bmask)
+    BREV:  t = a << b[4:0]; then reverse t in groups selected by bmask_a_i[1:0]:
+           0: single bits (full 32-bit bit-reversal of t)
+           1: 2-bit groups: result[2j+1:2j] = t[31-2j : 30-2j] for j=0..15
+           2: 3-bit groups: result[3j+2:3j] = t[31-3j : 29-3j] for j=0..9,
+              result[31:30] = 0
+           3: same as 0
+  (In practice b[4:0] equals bmask_b_i for BEXT/BEXTU/BINS, but arbitrary
+  combinations are driven and must match the formulas above.)
+
+* Bit-count (32-bit mode only, result on 6 bits zero-extended to 32):
+    CNT: number of set bits in a
+    FF1: index of the least-significant set bit of a, or 32 if a==0
+    FL1: index of the most-significant set bit of a, or 32 if a==0
+    CLB: count of leading bits of a equal to the sign bit a[31], minus one
+         (i.e. redundant sign bits); special case a==0 -> 0. Examples:
+         a=32'hFFFFFFFF -> 31, a=32'h00000001 -> 30, a=32'h40000000 -> 0.
+
+* Serial divider (32-bit mode only). NOTE the operand roles: the DIVIDEND is
+  operand_b_i and the DIVISOR is operand_a_i. RISC-V M-extension semantics:
+    DIVU: b /u a;  a==0 -> 32'hFFFFFFFF
+    DIV:  b /s a (quotient rounds toward zero);  a==0 -> 32'hFFFFFFFF;
+          b==0x80000000, a==0xFFFFFFFF -> 0x80000000
+    REMU: b %u a;  a==0 -> b
+    REM:  b %s a (sign follows the dividend);  a==0 -> b;
+          b==0x80000000, a==0xFFFFFFFF -> 0
+  These four ops go through the serial divider and take several cycles; the
+  cycle count must be exactly the starting point's (see the contract above).
+
+Driven input envelope (anything outside is a don't-care, testbench never drives
+it): only the 57 opcodes above; vector_mode_i in {00,10,11} and restricted to
+32-bit mode for logic*, bit-manip, bit-count, scalar set-less, clip and div/rem
+(*logic ops are lane-independent anyway); bmask_a_i/bmask_b_i are nonzero only
+for the adder family and bit-manip ops; imm_vec_ext_i nonzero only for
+EXT/EXTS/INS; is_clpx_i only for ABS (16-bit mode) and the adder family;
+is_subrot_i only for SUB (16-bit mode); clpx_shift_i nonzero only when
+is_clpx_i=1; ABS sees operand_b_i==0 only; EXT/EXTS see operand_c_i==0 only.
+
+Everything outside the driven envelope is a don't-care and is never exercised.
