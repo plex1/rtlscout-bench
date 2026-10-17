@@ -1,0 +1,15 @@
+{
+  "name": "cv32e40p_alu_verilog",
+  "module_name": "cv32e40p_alu",
+  "tb_module": "tb",
+  "golden_reference": "context/starting_point.sv",
+  "golden_reference_language": "verilog",
+  "language": "verilog",
+  "starting_point": "context/starting_point.sv",
+  "cost_metric": ["area_delay_product"],
+  "source": {
+    "origin": "github.com/openhwgroup/cv32e40p (commit 6033d2b, Solderpad Hardware License 0.51), rtl/cv32e40p_alu.sv, cv32e40p_popcnt.sv, cv32e40p_ff_one.sv, cv32e40p_alu_div.sv and include/cv32e40p_pkg.sv — flattened into one file by _debug/make_flattened.py: package import removed, the opcode and vector-mode constants inlined as localparams, the enum-typed operator port declared logic [6:0]; no logic edits (originals in _debug/orig/)",
+    "design": "RV32IM + XPULP execution-stage ALU: 57 opcodes over one 32-bit, two 16-bit or four 8-bit lanes, bit manipulation and counting, shuffle/pack/extract/insert, clip, and a multi-cycle serial divider behind the ready_o/ex_ready_i handshake (the only sequential logic); every other opcode is combinational",
+    "oracle": "tb.sv embeds the upstream ALU (modules renamed __ref) and compares ready_o at every falling edge and result_o (plus comparison_result_o for the 14 comparison opcodes) at the reference's ready: the 20,000 vectors of vectors.dat (expected outputs captured from upstream by _debug/gen_tb.sv and cross-checked by _debug/sanity_check.py; the div-heavy mix by _debug/gen_divheavy_vectors.py), an 8,192-operation divider sweep and 1,000,000 fixed-seed random operations generated in the testbench"
+  }
+}
