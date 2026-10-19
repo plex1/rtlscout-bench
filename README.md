@@ -1,6 +1,6 @@
 # rtlscout-bench
 
-**User manual: [docs/manual.md](docs/manual.md)** · Roadmap: [ROADMAP.md](ROADMAP.md) · Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
+**Live leaderboard: [plex1.github.io/rtlscout-bench](https://plex1.github.io/rtlscout-bench/)** · **User manual: [docs/manual.md](docs/manual.md)** · Roadmap: [ROADMAP.md](ROADMAP.md) · Contributing: [CONTRIBUTING.md](CONTRIBUTING.md)
 
 The benchmark suite, the campaign tooling and the page template of the RTL Scout leaderboard: how far can an LLM
 agent push a hardware design? Each model drives the [RTL Scout](https://github.com/huawei-csl/rtlscout) agent for
