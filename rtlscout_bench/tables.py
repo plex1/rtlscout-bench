@@ -134,7 +134,7 @@ def load_board(data: Path, task_id: str, current_suite: str | None = None, model
         or next((r["agg"]["mean"] for r in rows if r["agg"]), None)
     return dict(task=task_id, title=lb.get("title") or task_id, description=lb.get("description", ""),
                 metric_label=lb.get("metric_label") or "cost", unit=lb.get("unit", ""), flow=lb.get("flow", ""),
-                baselines=lb["baselines"], rows=rows, excluded=excluded, footnotes=lb["footnotes"],
+                baselines=lb["baselines"], reference=lb.get("reference"), rows=rows, excluded=excluded, footnotes=lb["footnotes"],
                 scale_exp=scale_exponent(ref))
 
 
@@ -404,12 +404,17 @@ def overall_board(boards: list[dict]) -> dict:
     ranks the same field:
 
     - ``mean_rank``: the mean of the entry's rank per task (1 = lowest mean cost); lower is better.
-    - ``score``: the headroom-normalized score (``headroom_score``), per task (start - mean) / (start - best
-      run), where the best run is the lowest cost any complete entry's run reached on that task: the share of
-      the best known reduction the entry's mean achieved (1 = every run as good as the best design known, 0 =
-      no change, negative = worse than the starting design), averaged over tasks; higher is better. A task
-      where no complete entry improved on the start contributes 0 for everyone. Each task's ``start`` and
-      ``best`` are returned with the task, so the page scores runs and trajectories with the same reference.
+    - ``score``: the headroom score (``headroom_score``), per task (start - mean) / (start - best run), where
+      the best run is the lowest cost any complete entry's run reached on that task: the share of the best known
+      reduction the entry's mean achieved (1 = every run as good as the best design known, 0 = no change,
+      negative = worse than the starting design), averaged over tasks; higher is better. A task where no complete
+      entry improved on the start contributes 0 for everyone. Each task's ``start`` and ``best`` are returned
+      with the task, so the page scores runs and trajectories with the same reference.
+    - ``frozen_score``: the frozen headroom score: the same, divided by the headroom of the task's ``reference``
+      (the best run when the reference was frozen, kept in the task's leaderboard file) instead of today's best
+      run, so an entry's value does not move when others are added and more than 1 beats the frozen reference.
+      None unless every task has a reference; the reference is returned with the task (``frozen_best``,
+      ``frozen``, ``frozen_run``).
     - ``geomean``: the geometric mean over tasks of mean cost / start; ``reduction_pct`` is 100 * (1 - geomean).
       Informative only (it weights a task by its headroom).
 
@@ -446,7 +451,7 @@ def overall_board(boards: list[dict]) -> dict:
         row["complete"] = all(tid in row["cells"] for tid in task_ids) and bool(task_ids)
         row["missing"] = [tid for tid in task_ids if tid not in row["cells"]]
         row["suite"] = " / ".join(row["suites"])
-        row["mean_rank"] = row["score"] = row["geomean"] = row["reduction_pct"] = None
+        row["mean_rank"] = row["score"] = row["frozen_score"] = row["geomean"] = row["reduction_pct"] = None
         row["usd_total"] = row["runtime_total"] = None
     complete = [r for r in rows.values() if r["complete"]]
     # the reference per task: the starting design and the best single run among the complete entries
@@ -460,16 +465,25 @@ def overall_board(boards: list[dict]) -> dict:
         best_run[tid] = min(costs) if costs else None
         lang = complete[0]["language"] if complete else "verilog"
         t["start"], t["best"] = baseline_cost(by_task[tid], lang), best_run[tid]
+        ref = by_task[tid].get("reference") or {}
+        if ref.get("best") is not None:
+            t["frozen_best"], t["frozen"] = ref["best"], ref.get("frozen")
+            t["frozen_run"] = f"{ref.get('entry')}/{ref.get('run')}" if ref.get("run") else None
+    frozen_best = {t["task"]: t.get("frozen_best") for t in tasks}
+    all_frozen = bool(task_ids) and all(frozen_best[tid] is not None for tid in task_ids)
     for tid in task_ids:
         ordered = sorted(complete, key=lambda r: (r["cells"][tid]["mean"], r["entry"]))
         for rank, r in enumerate(ordered, 1):
             c = r["cells"][tid]
             c["rank"] = rank
-            c["score"] = headroom_score(baseline_cost(by_task[tid], r["language"]), best_run[tid], c["mean"])
+            b = baseline_cost(by_task[tid], r["language"])
+            c["score"] = headroom_score(b, best_run[tid], c["mean"])
+            c["frozen_score"] = headroom_score(b, frozen_best[tid], c["mean"]) if frozen_best[tid] is not None else None
     for r in complete:
         cells = [r["cells"][tid] for tid in task_ids]
         r["mean_rank"] = statistics.mean(c["rank"] for c in cells)
         r["score"] = statistics.mean(c["score"] for c in cells)
+        r["frozen_score"] = statistics.mean(c["frozen_score"] for c in cells) if all_frozen else None
         r["geomean"] = math.exp(statistics.mean(math.log(c["ratio"]) for c in cells))
         r["reduction_pct"] = (1 - r["geomean"]) * 100
         usd = [c["usd"] for c in cells]
@@ -480,36 +494,41 @@ def overall_board(boards: list[dict]) -> dict:
     for r in rows.values():
         if r["complete"] or not task_ids:
             continue
-        ranks, scores = [], []
+        ranks, scores, frozen = [], [], []
         for tid in task_ids:
             field = [x["cells"][tid] for x in complete]
             if tid in r["cells"]:
                 c = r["cells"][tid]
                 c["rank"] = 1 + sum(1 for f in field if f["mean"] < c["mean"])
-                c["score"] = headroom_score(baseline_cost(by_task[tid], r["language"]), best_run[tid], c["mean"])
-                ranks.append(c["rank"]); scores.append(c["score"])
+                b = baseline_cost(by_task[tid], r["language"])
+                c["score"] = headroom_score(b, best_run[tid], c["mean"])
+                c["frozen_score"] = headroom_score(b, frozen_best[tid], c["mean"]) if frozen_best[tid] is not None else None
+                ranks.append(c["rank"]); scores.append(c["score"]); frozen.append(c["frozen_score"])
             else:
                 ranks.append(worst_rank); scores.append(min([0.0] + [f["score"] for f in field]))
+                frozen.append(min([0.0] + [f["frozen_score"] for f in field if f["frozen_score"] is not None]))
         r["mean_rank"] = statistics.mean(ranks)
         r["score"] = statistics.mean(scores)
+        r["frozen_score"] = statistics.mean(frozen) if all_frozen else None
     out = sorted(rows.values(), key=lambda r: (not r["complete"], r["mean_rank"] if r["mean_rank"] is not None else 0.0,
                                                r["geomean"] if r["geomean"] is not None else 0.0, -len(r["cells"]), r["entry"]))
     return dict(tasks=tasks, rows=out, n_complete=len(complete), worst_rank=worst_rank)
 
 
 def render_overall_text(overall: dict) -> str:
-    """Fixed-width overall table: rank by mean rank, with the headroom-normalized score next to it."""
+    """Fixed-width overall table: rank by mean rank, with the headroom score and the frozen headroom score next to it."""
     tasks = overall["tasks"]
     lines = [f"overall: {len(tasks)} task(s) ({', '.join(t['task'] for t in tasks)}); ranked by mean rank among the "
              f"{overall['n_complete']} entries with a result on every task"]
     complete = [r for r in overall["rows"] if r["complete"]]
     if complete:
-        hdr = ("#", "Entry", "mean rank", "score", "avg. reduction") + tuple(t["task"] for t in tasks) + ("$/task", "suite")
+        hdr = ("#", "Entry", "mean rank", "score", "frozen", "avg. reduction") + tuple(t["task"] for t in tasks) + ("$/task", "suite")
         table = [hdr]
         for i, r in enumerate(complete, 1):
             cells = tuple(f"{r['cells'][t['task']]['rank']} · {r['cells'][t['task']]['pct']:+.1f}%" for t in tasks)
             usd = DASH if r["usd_total"] is None else f"{r['usd_total'] / len(tasks):.1f}"
-            table.append((str(i), r["label"], f"{r['mean_rank']:.2f}", f"{r['score']:.2f}", f"{-r['reduction_pct']:+.1f}%")
+            frozen = DASH if r["frozen_score"] is None else f"{r['frozen_score']:.2f}"
+            table.append((str(i), r["label"], f"{r['mean_rank']:.2f}", f"{r['score']:.2f}", frozen, f"{-r['reduction_pct']:+.1f}%")
                          + cells + (usd, r["suite"]))
         widths = [max(len(row[i]) for row in table) for i in range(len(hdr))]
         left = {1, len(hdr) - 1}
@@ -522,7 +541,8 @@ def render_overall_text(overall: dict) -> str:
     partial = [r for r in overall["rows"] if not r["complete"]]
     for r in partial:
         have = ", ".join(f"{tid} {c['pct']:+.1f}%" for tid, c in r["cells"].items())
-        pen = (f"; penalized mean rank {r['mean_rank']:.2f}, score {r['score']:.2f}" if r["mean_rank"] is not None else "")
+        pen = (f"; penalized mean rank {r['mean_rank']:.2f}, score {r['score']:.2f}"
+               + (f", frozen {r['frozen_score']:.2f}" if r.get("frozen_score") is not None else "") if r["mean_rank"] is not None else "")
         lines.append(f"  partial: {r['label']} ({len(r['cells'])} of {len(tasks)} tasks: {have or 'no passing run'}{pen})")
     return "\n".join(lines)
 

@@ -209,7 +209,7 @@ def test_campaign_table_from_a_campaign_file(bench, tmp_path, capsys):
 
 # ------------------------------------------------------------------------------------------ the overall table
 
-def _board(task, rows, base=1000.0, title=None):
+def _board(task, rows, base=1000.0, title=None, reference=None):
     """A resolved task board with only the fields the overall table reads. ``rows``: (entry, mean or None, suite)."""
     def row(entry, mean, suite):
         agg = None if mean is None else dict(n=3, no_pass=0, mean=mean, sd=10.0, min=mean - 10, max=mean + 10,
@@ -219,7 +219,7 @@ def _board(task, rows, base=1000.0, title=None):
                     open_weights=True, language="verilog", reasoning_effort="default", suite=suite, agg=agg, runs=runs)
     rows = sorted((row(*r) for r in rows), key=lambda r: (r["agg"] is None, r["agg"]["mean"] if r["agg"] else 0))
     return dict(task=task, title=title or task, baselines={"verilog": dict(cost=base)} if base else {}, rows=rows,
-                excluded=[], scale_exp=0)
+                excluded=[], scale_exp=0, reference=reference)
 
 
 def test_overall_ranks_complete_entries_only_and_scores_both_ways():
@@ -267,6 +267,26 @@ def test_overall_scores_against_the_best_single_run():
     assert by["p"]["cells"]["t1"]["score"] == pytest.approx(550 / 800)           # scored against the ranked field's reference
     assert tables.headroom_score(1000.0, 200.0, 1000.0) == 0.0 and tables.headroom_score(1000.0, None, 500.0) == 0.0
     assert tables.headroom_score(1000.0, 1200.0, 500.0) == 0.0                   # nothing beat the start: no headroom
+
+
+def test_overall_frozen_score_uses_the_frozen_reference():
+    ref = dict(best=400.0, entry="x", run="r1", frozen="2026-10-19")
+    boards = [_board("t1", [("a", 500.0, "s"), ("b", 600.0, "s"), ("p", 450.0, "s")], reference=ref),
+              _board("t2", [("a", 900.0, "s"), ("b", 800.0, "s")], reference=dict(best=800.0, entry="b", run="r2", frozen="2026-10-19"))]
+    {r["entry"]: r for r in boards[0]["rows"]}["b"]["runs"] = [dict(best=dict(cost=200.0))]       # today's best run beats the frozen 400
+    o = tables.overall_board(boards)
+    t = {x["task"]: x for x in o["tasks"]}
+    assert (t["t1"]["best"], t["t1"]["frozen_best"], t["t1"]["frozen"], t["t1"]["frozen_run"]) == (200.0, 400.0, "2026-10-19", "x/r1")
+    by = {r["entry"]: r for r in o["rows"]}
+    assert by["a"]["cells"]["t1"]["score"] == pytest.approx(500 / 800)            # live: against today's best run
+    assert by["a"]["cells"]["t1"]["frozen_score"] == pytest.approx(500 / 600)     # frozen: against the reference
+    assert by["b"]["cells"]["t1"]["frozen_score"] == pytest.approx(400 / 600)
+    assert by["a"]["frozen_score"] == pytest.approx((500 / 600 + 0.5) / 2) and by["b"]["frozen_score"] == pytest.approx((400 / 600 + 1.0) / 2)
+    assert by["p"]["cells"]["t1"]["frozen_score"] == pytest.approx(550 / 600) and by["p"]["frozen_score"] == pytest.approx((550 / 600 + 0.0) / 2)
+    assert "frozen" in tables.render_overall_text(o)
+    # without a reference on every task there is no frozen score
+    o2 = tables.overall_board([boards[0], _board("t2", [("a", 900.0, "s"), ("b", 800.0, "s")])])
+    assert all(r["frozen_score"] is None for r in o2["rows"]) and "frozen_best" not in o2["tasks"][1]
 
 
 def test_overall_handles_no_headroom_and_no_passing_runs():

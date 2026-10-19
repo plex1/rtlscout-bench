@@ -359,14 +359,16 @@ is a new task, so all rows of one table are comparable by construction.
 `publish` print) compares positions, not costs. An entry is *complete* when every enabled task has a row of it
 with a passing run; only complete entries are ranked, and both scores are computed among them, so every task
 ranks the same field. *Mean rank* is the mean of the entry's rank per task (lower is better). The
-*headroom-normalized score* is, per task, (start − mean) / (start − best run among the complete entries), the
+*headroom score* is, per task, (start − mean) / (start − best run among the complete entries), the
 share of the best known reduction the entry reached, averaged over the tasks (higher is better; a task nobody
-improved contributes 0). The page switches between the two; the *average reduction* next to them is the
+improved contributes 0). The *frozen headroom score* is the same with the reference frozen at a date (see
+`reference` below), so an entry's value does not move as others are added. The page switches between the three;
+the *average reduction* next to them is the
 geometric mean over tasks of mean cost / start, informative only because it weights a task by its headroom.
 Entries with results on some tasks appear greyed below the ranked ones, with a penalized mean rank and score: a
 task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that
-task (0 or lower). Below the table the overall view repeats the task pages' charts in headroom-normalized units
-(0 the starting design, 1 the best known mean of each task): every run as a dot, colored by task; the
+task (0 or lower). Below the table the overall view repeats the task pages' charts in headroom-score units
+(0 the starting design, 1 the best single run of each task): every run as a dot, colored by task; the
 convergence of the score over steps or evaluations, aggregated within a task as the best run, the median or the
 mean of the entry's runs and then averaged over the tasks with equal weight; and the score against the mean API
 spend per run. Ranked entries only. Nothing in `data/` stores this table: it
@@ -374,7 +376,12 @@ is derived from the task leaderboards at build time, and `publish` shows how the
 
 The first time a run of a new task is recorded, `data/leaderboards/<task>.json` is created with placeholder
 texts. Fill in `title`, `description`, `metric_label`, `unit` and `flow` there; the page shows them
-([The data repository](#8-the-data-repository)).
+([The data repository](#8-the-data-repository)). The optional `reference` block of that file freezes the
+headroom reference for the *frozen headroom score*: `best` (the cost of the best single run among the ranked
+entries at the freeze), `entry`, `run` and `frozen` (the date). The frozen headroom score divides by start minus
+this value instead of today's best run, so an entry's value does not move when others are added, and more than
+100 % beats the frozen reference. It is shown only when every enabled task has a reference; a new task gets its
+block when its first results are published.
 
 ### Adding a model
 
