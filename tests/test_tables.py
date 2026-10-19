@@ -40,9 +40,14 @@ def test_aggregate_uses_the_sample_standard_deviation():
         usd_sd=None)
 
 
-def test_runs_without_a_passing_design_are_counted_separately():
-    a = aggregate([dict(best=dict(cost=3.0), runtime_min=5, usd=1.0), dict(best=None, runtime_min=7, usd=1.0)])
-    assert (a["n"], a["no_pass"], a["mean"], a["runtime"]) == (1, 1, 3.0, 6)
+def test_runs_without_a_passing_design_count_at_the_start():
+    recs = [dict(best=dict(cost=3.0), runtime_min=5, usd=1.0), dict(best=None, runtime_min=7, usd=1.0)]
+    a = aggregate(recs, start=9.0)
+    assert (a["n"], a["no_pass"], a["mean"], a["min"], a["max"], a["runtime"]) == (2, 1, 6.0, 3.0, 9.0, 6)
+    assert aggregate([dict(best=None, runtime_min=7, usd=1.0)], start=9.0)["mean"] == 9.0
+    # without a known start such runs are left out, and a row of them alone has no statistics
+    a = aggregate(recs)
+    assert (a["n"], a["no_pass"], a["mean"]) == (1, 1, 3.0)
     assert aggregate([dict(best=None, runtime_min=7, usd=1.0)]) is None
 
 

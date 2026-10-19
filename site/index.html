@@ -569,7 +569,7 @@ function renderOvConv(){
   const series = R.map(r=>{
     const perTask = tasks.map(t=>{
       const runs = ovRunsOf(r.entry, t);
-      const mats = runs.map(run=>(byStep ? bestByStep(run,n) : bestByEval(run,n)).map(c=>ovScore(ref, t.id, c==null ? ref[t.id].start : c)));
+      const mats = runs.map(run=>(byStep ? bestByStep(run,n,ref[t.id].start) : bestByEval(run,n,ref[t.id].start)).map(c=>ovScore(ref, t.id, c)));
       return xs.map((_,j)=>ovAggFn(mats.map(m=>m[j])));
     });
     const ends = tasks.flatMap(t=>ovRunsOf(r.entry,t)).map(run=>runEnd(run,mode)), rend = Math.max(...ends, 0);
@@ -682,7 +682,7 @@ function renderTable(){
   $('lb-table').innerHTML = h + '</tbody>';
   const starts = langsWithBase().map(l=>`${LANG[l]||l} ${fmtC(T.baselines[l].cost)}`).join(', ');
   const noPass = R.reduce((n,r)=>n+(r.agg.no_pass||0),0);
-  $('lb-cap').textContent = (starts ? `Starting point: ${starts} (${unit()}). ` : '') + `Mean ± sample standard deviation of the best cost per run, over n independent runs. "vs. start" is the mean relative to the unmodified design.` + (noPass ? ` ${noPass} run(s) without any passing design are not part of the means.` : '') + (R.some(r=>r.seed) ? ` Rows marked "measured before ${D.suite}" are seed data from before the suite was fixed; see the notes at the bottom.` : '');
+  $('lb-cap').textContent = (starts ? `Starting point: ${starts} (${unit()}). ` : '') + `Mean ± sample standard deviation of the best cost per run, over n independent runs. "vs. start" is the mean relative to the unmodified design.` + (noPass ? ` ${noPass} run(s) produced no passing design and count at the starting design.` : '') + (R.some(r=>r.seed) ? ` Rows marked "measured before ${D.suite}" are seed data from before the suite was fixed; see the notes at the bottom.` : '');
 }
 
 /* ---------- strip plot ---------- */
@@ -700,10 +700,12 @@ function renderStrip(){
     const y = mt + i*rowH + rowH/2, a=r.agg;
     svg.appendChild(txt(ml-12,y+4,r.label,{class:'lbl','text-anchor':'end'}));
     svg.appendChild(el('line',{x1:X(sc(a.mean-a.sd)),x2:X(sc(a.mean+a.sd)),y1:y,y2:y,class:'sdbar'}));
-    r.runs.filter(x=>x.best_cost!=null).forEach(run=>{
-      const c = el('circle',{cx:X(sc(run.best_cost)),cy:y,r:6,class:'dot',style:`fill:${colorOf[r.entry]}`});
-      const hit = el('circle',{cx:X(sc(run.best_cost)),cy:y,r:12,class:'hit'});
-      bindTip(hit,`<b>${esc(r.label)}</b> · ${esc(run.id)}<br>${esc(short())} <b>${fmtC(run.best_cost)}</b> at eval ${run.best_eval}${run.best_step?` / step ${run.best_step}`:''}<br><span class="mono">${run.area?run.area.toFixed(0)+' µm² × '+run.delay.toFixed(1)+' ps · ':''}${run.n_evals} evals, ${run.n_failed} failed · ${run.runtime_min.toFixed(0)} min${run.usd==null?'':' · $'+run.usd.toFixed(1)}</span>`);
+    r.runs.forEach(run=>{
+      const v = run.best_cost==null ? baseOf(r) : run.best_cost;           // no passing design: the run stands at the start
+      if(v==null) return;
+      const c = el('circle',{cx:X(sc(v)),cy:y,r:6,class:'dot',style:`fill:${colorOf[r.entry]}`});
+      const hit = el('circle',{cx:X(sc(v)),cy:y,r:12,class:'hit'});
+      bindTip(hit,`<b>${esc(r.label)}</b> · ${esc(run.id)}<br>${run.best_cost==null ? 'no passing design: counted at the start' : `${esc(short())} <b>${fmtC(run.best_cost)}</b> at eval ${run.best_eval}${run.best_step?` / step ${run.best_step}`:''}`}<br><span class="mono">${run.area?run.area.toFixed(0)+' µm² × '+run.delay.toFixed(1)+' ps · ':''}${run.n_evals} evals, ${run.n_failed} failed · ${run.runtime_min.toFixed(0)} min${run.usd==null?'':' · $'+run.usd.toFixed(1)}</span>`);
       svg.appendChild(c); svg.appendChild(hit);
     });
     svg.appendChild(el('line',{x1:X(sc(a.mean)),x2:X(sc(a.mean)),y1:y-10,y2:y+10,class:'mean'}));
@@ -718,20 +720,21 @@ function aggVals(vals){
   if(convAgg==='min') return Math.min(...vals);
   vals.sort((a,b)=>a-b); const k=vals.length; return k%2?vals[(k-1)/2]:(vals[k/2-1]+vals[k/2])/2;
 }
-function bestByEval(run, n){            // best passing cost after each evaluation 1..n (carried forward)
-  const out=[]; let best=null; const byEval = new Map(run.traj.map(t=>[t.e,t]));
+// best-so-far helpers: a run stands at `start`, the starting design's cost, until its first passing design
+function bestByEval(run, n, start){     // best passing cost after each evaluation 1..n (carried forward)
+  const out=[]; let best=start==null?null:start; const byEval = new Map(run.traj.map(t=>[t.e,t]));
   for(let e=1;e<=n;e++){ const t=byEval.get(e); if(t&&t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); out.push(best); }
   return out;
 }
-function bestByStep(run, n){            // best passing cost after each agent step 1..n (carried forward)
+function bestByStep(run, n, start){     // best passing cost after each agent step 1..n (carried forward)
   const pts = run.traj.filter(t=>t.s!=null).slice().sort((a,b)=>a.s-b.s);
-  const out=[]; let best=null, i=0;
+  const out=[]; let best=start==null?null:start, i=0;
   for(let k=1;k<=n;k++){ while(i<pts.length && pts[i].s<=k){ const t=pts[i++]; if(t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); } out.push(best); }
   return out;
 }
-function bestByTime(run, grid){         // best passing cost at each time of the grid (minutes since run start)
+function bestByTime(run, grid, start){  // best passing cost at each time of the grid (minutes since run start)
   const pts = run.traj.filter(t=>t.t!=null).slice().sort((a,b)=>a.t-b.t);
-  const out=[]; let best=null, i=0;
+  const out=[]; let best=start==null?null:start, i=0;
   grid.forEach(g=>{ while(i<pts.length && pts[i].t<=g){ const t=pts[i++]; if(t.ok&&t.c!=null) best = best==null?t.c:Math.min(best,t.c); } out.push(best); });
   return out;
 }
@@ -757,7 +760,7 @@ function renderConv(){
   // aggregate stays over all the entry's runs; the series ends where the entry's longest run ends, and
   // `alive` counts the runs still running at that x (drawn dashed when not all of them are).
   const series = R.map(r=>{
-    const mats = r.runs.map(run=>byTime ? bestByTime(run,xs) : mode==='step' ? bestByStep(run,xs.length) : bestByEval(run,xs.length));
+    const b0 = baseOf(r), mats = r.runs.map(run=>byTime ? bestByTime(run,xs,b0) : mode==='step' ? bestByStep(run,xs.length,b0) : bestByEval(run,xs.length,b0));
     const ends = r.runs.map(run=>runEnd(run,mode)), rend = Math.max(...ends, 0);
     const y = xs.map((x,j)=> x>rend+1e-9 ? null : aggVals(mats.map(m=>m[j]).filter(v=>v!=null).map(sc)));
     const alive = xs.map(x=>ends.filter(e=>e>=x-1e-9).length);
@@ -771,7 +774,7 @@ function renderConv(){
   const aggName = convAgg==='min'?'best single run (min)':convAgg;
   const axisName = {step:'per agent step', eval:'per evaluation', time:'against minutes since the run started'}[mode];
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':`Best cost so far ${axisName}, ${convAgg} per entry`});
-  $('conv-desc').textContent = `Best verified cost reached so far, ${axisName}, ${aggName} across each entry's runs. Within an entry a run that has stopped keeps its last value, so the ${aggName} stays over all its runs; a line ends where the entry's longest run ends and is dashed where not all of its runs are still running. Click a legend entry to hide it.`;
+  $('conv-desc').textContent = `Best verified cost reached so far, ${axisName}, ${aggName} across each entry's runs. A run stands at the starting design until its first passing design, so every line starts at the start and only falls. Within an entry a run that has stopped keeps its last value, so the ${aggName} stays over all its runs; a line ends where the entry's longest run ends and is dashed where not all of its runs are still running. Click a legend entry to hide it.`;
   ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
   if(byTime){ const at = niceTicks(0,xb,8); at.ticks.filter(v=>v<=xb).forEach(v=>svg.appendChild(txt(X(v),H-mb+16,v.toFixed(at.dec),{'text-anchor':'middle'}))); }
   else { const st = xb>60?10:5; for(let e=st;e<=xb;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'})); }

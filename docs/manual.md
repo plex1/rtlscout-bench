@@ -817,8 +817,10 @@ level, is what decides correctness here.
 
 **What counts as a valid run.** A run counts when it is `completed` (rtlscout finished and reported no error),
 was made under the entry's conditions for the suite, and is not excluded. Repeats are independent launches;
-there is no sampling seed. A completed run in which no evaluation passed has no score: it stays in the row's
-run list, is reported as "without a passing design", and is not part of the mean.
+there is no sampling seed. A completed run in which no evaluation passed counts at the starting design's cost:
+the agent improved nothing, and the starting design stands. It stays in the row's run list and is reported as
+"without a passing design". The convergence charts apply the same rule over time: a run stands at the start
+until its first passing design, so the aggregates can only fall.
 
 **The starting point** ("vs. start") is the shipped starting design evaluated once with the same metric and
 flags. For `tpu-adp` in Verilog the seed campaigns measured 4,624,408.88 µm²·ps (4,604 µm² × 1,004.4 ps). To

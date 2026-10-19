@@ -37,15 +37,19 @@ def _sd(values: list[float]) -> float:
     return statistics.stdev(values) if len(values) > 1 else 0.0
 
 
-def aggregate(records: list[dict]) -> dict | None:
-    """Row statistics over the runs that produced a passing design. ``sd`` is the sample standard deviation (n-1)."""
+def aggregate(records: list[dict], start: float | None = None) -> dict | None:
+    """Row statistics over the runs. A run without a passing design counts at ``start``, the starting design's
+    cost, when it is known: the agent improved nothing, and the starting design stands. Without a known start
+    such runs are left out, and a row of them alone has no statistics. ``no_pass`` counts them either way;
+    ``sd`` is the sample standard deviation (n-1)."""
     valid = [r for r in records if r.get("best")]
-    if not valid:
+    scored = records if start else valid
+    if not scored:
         return None
-    cost = [r["best"]["cost"] for r in valid]
+    cost = [r["best"]["cost"] if r.get("best") else start for r in scored]
     minutes = [r["runtime_min"] for r in records]
     usd = [r["usd"] for r in records if r.get("usd") is not None]
-    return dict(n=len(valid), no_pass=len(records) - len(valid), mean=statistics.mean(cost), sd=_sd(cost),
+    return dict(n=len(cost), no_pass=len(records) - len(valid), mean=statistics.mean(cost), sd=_sd(cost),
                 min=min(cost), max=max(cost), median=statistics.median(cost),
                 runtime=statistics.mean(minutes), runtime_sd=_sd(minutes),
                 usd=statistics.mean(usd) if usd else None, usd_sd=_sd(usd) if usd else None)
@@ -111,7 +115,7 @@ def load_board(data: Path, task_id: str, current_suite: str | None = None, model
             reasoning_effort=recs[0]["reasoning_effort"], flags=recs[0]["flags"], max_steps=recs[0]["max_steps"],
             suite=recs[0]["suite"], seed=current_suite is not None and recs[0]["suite"] != current_suite,
             label=_label(name, recs[0]), price=recs[0].get("price_per_mtok"), note=lb["notes"].get(entry),
-            runs=recs, agg=aggregate(recs)))
+            runs=recs, agg=aggregate(recs, baseline_cost(lb, recs[0]["language"]))))
     seen: dict[str, int] = {}
     for row in rows:
         seen[row["label"]] = seen.get(row["label"], 0) + 1
@@ -174,10 +178,11 @@ def _cells(board: dict, row: dict) -> dict:
         n = f"0 (+{len(row['runs'])} without a passing design)"
         return dict(label=row["label"], n=n, mean=DASH, best=DASH, vs=DASH, runtime=DASH, usd=DASH)
     pm = lambda m, s, fmt, n: f"{m:{fmt}} ± {s:{fmt}}" if n > 1 else f"{m:{fmt}}"
-    total = a["n"] + a["no_pass"]
+    total = len(row["runs"])
     base = baseline_cost(board, row["language"])
     vs = f"{(a['mean'] / base - 1) * 100:+.1f}%" if base else DASH
-    n = str(a["n"]) + (f" (+{a['no_pass']} without a passing design)" if a["no_pass"] else "")
+    at_start = a["n"] + a["no_pass"] > total          # the runs without a pass are inside n, counted at the start
+    n = str(a["n"]) + (f" ({a['no_pass']} without a passing design{', at the start' if at_start else ''})" if a["no_pass"] else "")
     return dict(label=row["label"], n=n,
                 mean=pm(a["mean"] / k, a["sd"] / k, ".3f", a["n"]), best=f"{a['min'] / k:.3f}", vs=vs,
                 runtime=pm(a["runtime"], a["runtime_sd"], ".0f", total),
