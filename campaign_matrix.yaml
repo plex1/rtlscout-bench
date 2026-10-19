@@ -88,6 +88,9 @@ entries:                               # open-weights models only, for now
   - id: deepseek-v4.1-flash            # DeepSeek's default effort is high (levels: low, high, max)
     model: openrouter:deepseek/deepseek-v4.1-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: coreweave}   # one fixed deployment (fp8) instead of OpenRouter's per-request routing
+  - id: deepseek-v4.1-flash-1017       # the 2026-10-17 snapshot of V4.1 Flash (open weights on Hugging Face); default effort high
+    model: openrouter:deepseek/deepseek-v4.1-flash-1017
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: deepinfra}   # one fp8 deployment; CoreWeave (the V4.1 Flash pin) does not serve this snapshot
   - id: mimo-v2.6-flash                # Xiaomi MiMo-V2.6-Flash (MIT weights); thinking is a toggle at Xiaomi, effort levels map onto it
     model: openrouter:xiaomi/mimo-v2.6-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: xiaomi}   # the vendor's own endpoint (fp8)
