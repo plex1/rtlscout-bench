@@ -209,8 +209,9 @@ def _board(task, rows, base=1000.0, title=None):
     def row(entry, mean, suite):
         agg = None if mean is None else dict(n=3, no_pass=0, mean=mean, sd=10.0, min=mean - 10, max=mean + 10,
                                              median=mean, runtime=100.0, runtime_sd=5.0, usd=1.0, usd_sd=0.1)
+        runs = [] if mean is None else [dict(best=dict(cost=mean))]        # one run as good as the mean
         return dict(entry=entry, label=entry.upper(), name=entry.upper(), model=f"x/{entry}", vendor="V",
-                    open_weights=True, language="verilog", reasoning_effort="default", suite=suite, agg=agg, runs=[])
+                    open_weights=True, language="verilog", reasoning_effort="default", suite=suite, agg=agg, runs=runs)
     rows = sorted((row(*r) for r in rows), key=lambda r: (r["agg"] is None, r["agg"]["mean"] if r["agg"] else 0))
     return dict(task=task, title=title or task, baselines={"verilog": dict(cost=base)} if base else {}, rows=rows,
                 excluded=[], scale_exp=0)
@@ -245,6 +246,22 @@ def test_overall_ranks_complete_entries_only_and_scores_both_ways():
     assert o["rows"][-1]["entry"] == "p"
     # all three tie on mean rank: the geomean breaks the tie (c: 0.4*0.95, a: 0.5*0.9, b: 0.6*0.8)
     assert [r["entry"] for r in o["rows"][:3]] == ["c", "a", "b"]
+
+
+def test_overall_scores_against_the_best_single_run():
+    boards = [_board("t1", [("a", 500.0, "s"), ("b", 600.0, "s"), ("p", 450.0, "s")]), _board("t2", [("a", 900.0, "s"), ("b", 800.0, "s")])]
+    rows = {r["entry"]: r for r in boards[0]["rows"]}
+    rows["b"]["runs"] = [dict(best=dict(cost=640.0)), dict(best=dict(cost=200.0)), dict(best=None)]   # one deep run, one without a pass
+    rows["p"]["runs"] = [dict(best=dict(cost=100.0))]                                                  # a partial entry's run does not set the scale
+    o = tables.overall_board(boards)
+    t = {x["task"]: x for x in o["tasks"]}
+    assert (t["t1"]["start"], t["t1"]["best"]) == (1000.0, 200.0) and (t["t2"]["start"], t["t2"]["best"]) == (1000.0, 800.0)
+    by = {r["entry"]: r for r in o["rows"]}
+    assert by["a"]["cells"]["t1"]["score"] == pytest.approx(500 / 800) and by["b"]["cells"]["t1"]["score"] == pytest.approx(400 / 800)
+    assert by["b"]["cells"]["t2"]["score"] == pytest.approx(1.0)                 # its only run is its mean: the best run known
+    assert by["p"]["cells"]["t1"]["score"] == pytest.approx(550 / 800)           # scored against the ranked field's reference
+    assert tables.headroom_score(1000.0, 200.0, 1000.0) == 0.0 and tables.headroom_score(1000.0, None, 500.0) == 0.0
+    assert tables.headroom_score(1000.0, 1200.0, 500.0) == 0.0                   # nothing beat the start: no headroom
 
 
 def test_overall_handles_no_headroom_and_no_passing_runs():

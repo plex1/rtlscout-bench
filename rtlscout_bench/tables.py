@@ -138,6 +138,22 @@ def baseline_cost(board: dict, language: str) -> float | None:
     return (board["baselines"].get(language) or {}).get("cost")
 
 
+def headroom(start: float | None, best: float | None) -> float:
+    """The reduction the best known design achieved on a task: start minus the best cost, 0 when nothing beat the start."""
+    return start - best if start and best is not None and best < start else 0.0
+
+
+def headroom_score(start: float | None, best: float | None, cost: float | None) -> float:
+    """The headroom-normalized score of a cost: the share of the best known reduction it reached.
+
+    1 is the best single run known on the task, 0 the unmodified starting design, negative a cost above the
+    start; a task where nothing beat the start scores 0 for every cost. This is the one definition the overall
+    table, the publish summary and the page's charts share (the page receives ``start`` and ``best`` per task).
+    """
+    h = headroom(start, best)
+    return (start - cost) / h if h > 0 and cost is not None else 0.0
+
+
 # --------------------------------------------------------------------------------------------------------------
 # rendering
 # --------------------------------------------------------------------------------------------------------------
@@ -383,10 +399,12 @@ def overall_board(boards: list[dict]) -> dict:
     ranks the same field:
 
     - ``mean_rank``: the mean of the entry's rank per task (1 = lowest mean cost); lower is better.
-    - ``score``: the headroom-normalized score, per task (start - mean) / (start - best mean among complete
-      entries), i.e. the share of the best known reduction the entry achieved (1 = best on that task, 0 = no
-      change, negative = worse than the starting design), averaged over tasks; higher is better. A task where no
-      complete entry improved on the start contributes 0 for everyone.
+    - ``score``: the headroom-normalized score (``headroom_score``), per task (start - mean) / (start - best
+      run), where the best run is the lowest cost any complete entry's run reached on that task: the share of
+      the best known reduction the entry's mean achieved (1 = every run as good as the best design known, 0 =
+      no change, negative = worse than the starting design), averaged over tasks; higher is better. A task
+      where no complete entry improved on the start contributes 0 for everyone. Each task's ``start`` and
+      ``best`` are returned with the task, so the page scores runs and trajectories with the same reference.
     - ``geomean``: the geometric mean over tasks of mean cost / start; ``reduction_pct`` is 100 * (1 - geomean).
       Informative only (it weights a task by its headroom).
 
@@ -426,15 +444,23 @@ def overall_board(boards: list[dict]) -> dict:
         row["mean_rank"] = row["score"] = row["geomean"] = row["reduction_pct"] = None
         row["usd_total"] = row["runtime_total"] = None
     complete = [r for r in rows.values() if r["complete"]]
+    # the reference per task: the starting design and the best single run among the complete entries
+    best_run: dict[str, float | None] = {}
+    for t in tasks:
+        tid = t["task"]
+        entries = {r["entry"] for r in complete}
+        costs = [(rec.get("best") or {}).get("cost") for row in by_task[tid]["rows"] if row["entry"] in entries
+                 for rec in row.get("runs", [])]
+        costs = [c for c in costs if c is not None]
+        best_run[tid] = min(costs) if costs else None
+        lang = complete[0]["language"] if complete else "verilog"
+        t["start"], t["best"] = baseline_cost(by_task[tid], lang), best_run[tid]
     for tid in task_ids:
         ordered = sorted(complete, key=lambda r: (r["cells"][tid]["mean"], r["entry"]))
-        best = ordered[0]["cells"][tid]["mean"] if ordered else None
         for rank, r in enumerate(ordered, 1):
             c = r["cells"][tid]
             c["rank"] = rank
-            b = baseline_cost(by_task[tid], r["language"])
-            headroom = b - best if b and best is not None else 0.0
-            c["score"] = (b - c["mean"]) / headroom if headroom > 0 else 0.0
+            c["score"] = headroom_score(baseline_cost(by_task[tid], r["language"]), best_run[tid], c["mean"])
     for r in complete:
         cells = [r["cells"][tid] for tid in task_ids]
         r["mean_rank"] = statistics.mean(c["rank"] for c in cells)
@@ -455,10 +481,7 @@ def overall_board(boards: list[dict]) -> dict:
             if tid in r["cells"]:
                 c = r["cells"][tid]
                 c["rank"] = 1 + sum(1 for f in field if f["mean"] < c["mean"])
-                b = baseline_cost(by_task[tid], r["language"])
-                best = min(f["mean"] for f in field) if field else c["mean"]
-                headroom = b - best if b else 0.0
-                c["score"] = (b - c["mean"]) / headroom if headroom > 0 else 0.0
+                c["score"] = headroom_score(baseline_cost(by_task[tid], r["language"]), best_run[tid], c["mean"])
                 ranks.append(c["rank"]); scores.append(c["score"])
             else:
                 ranks.append(worst_rank); scores.append(min([0.0] + [f["score"] for f in field]))

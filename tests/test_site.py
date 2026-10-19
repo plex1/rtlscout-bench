@@ -40,7 +40,8 @@ def test_build_writes_the_template_copy_and_one_data_file(bench, tmp_path, capsy
     d = _site_data()
     assert d["suite"] == "suite-t1" and d["open_weights_only"] is True and d["data_url"] is None
     (task,) = d["tasks"]
-    assert d["overall"]["tasks"] == [dict(task="demo-adp", title=task["title"])] and d["overall"]["n_complete"] >= 1
+    assert d["overall"]["tasks"] == [dict(task="demo-adp", title=task["title"], start=1000.0, best=700.0)]   # the score reference
+    assert d["overall"]["n_complete"] >= 1
     passing = [p for r in task["rows"] for run in r["runs"] for p in run["traj"] if p["ok"]]
     assert passing and all("a" in p and "d" in p for p in passing)                     # area and delay per passing evaluation
     assert (task["id"], task["title"], task["metric"], task["unit"], task["scale_exp"]) == \

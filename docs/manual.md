@@ -359,7 +359,7 @@ is a new task, so all rows of one table are comparable by construction.
 `publish` print) compares positions, not costs. An entry is *complete* when every enabled task has a row of it
 with a passing run; only complete entries are ranked, and both scores are computed among them, so every task
 ranks the same field. *Mean rank* is the mean of the entry's rank per task (lower is better). The
-*headroom-normalized score* is, per task, (start − mean) / (start − best mean among the complete entries), the
+*headroom-normalized score* is, per task, (start − mean) / (start − best run among the complete entries), the
 share of the best known reduction the entry reached, averaged over the tasks (higher is better; a task nobody
 improved contributes 0). The page switches between the two; the *average reduction* next to them is the
 geometric mean over tasks of mean cost / start, informative only because it weights a task by its headroom.

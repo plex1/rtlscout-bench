@@ -237,7 +237,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <div class="card" style="margin-top:20px">
     <div class="chart" id="ov-strip"></div>
     <div class="legend" id="ov-strip-legend"></div>
-    <div class="cap">Every run as a dot, in headroom-normalized units: 0 is the starting design of its task, 1 the best single run any ranked entry reached on that task, so no dot lies above 1. (The table's score and the charts below use the best row mean as 1 instead.) The dot's color is the task. The vertical bar is the mean over all runs of the entry, the thin line their standard deviation. Hover a dot for its run.</div>
+    <div class="cap">Every run as a dot, in headroom-normalized units: 0 is the starting design of its task, 1 the best single run any ranked entry reached on that task, so no dot lies above 1. The dot's color is the task. The vertical bar is the mean over all runs of the entry, the thin line their standard deviation. Hover a dot for its run.</div>
   </div>
 </div></section>
 
@@ -500,7 +500,7 @@ function renderOverall(){
   });
   $('ov-table').innerHTML = h + '</tbody>';
   $('ov-cap').innerHTML = (ovMode==='score'
-    ? `<b>Headroom-normalized score</b>: on each task, (start − mean) / (start − best mean) among the ranked entries, so 100 % is the best entry on that task, 0 % the unmodified design and negative worse than it; averaged over the tasks. `
+    ? `<b>Headroom-normalized score</b>: on each task, (start − mean) / (start − best run), where the best run is the lowest cost any ranked entry reached on that task; 100 % would be an entry whose every run matched the best design known, 0 % the unmodified design and negative worse than it; averaged over the tasks. `
     : `<b>Mean rank</b>: the average of the entry's rank on the ${nT} task leaderboards, where the ranks are taken among the entries with results on every task, so each task ranks the same field. Ties break by average reduction. `)
     + `<b>Avg. reduction</b> is the geometric mean over tasks of mean cost / starting point, shown for information: it weights a task by its headroom. Per task: the rank among the ranked entries and the mean relative to the starting design. `
     + `Only entries with results on every task are ranked. The greyed rows are partial: their value is penalized (‡), a task they did not run counts as the worst rank, one below the last ranked entry, and as the worst score on that task, 0 or lower; on the tasks they ran, the rank is the position they would take among the ranked entries. $/run is the mean API cost per run across the tasks. `
@@ -509,15 +509,9 @@ function renderOverall(){
 
 /* ---------- overall charts: headroom-normalized units, complete entries only ---------- */
 const OV_T = () => OV.tasks.map(t=>D.tasks.find(x=>x.id===t.task)).filter(Boolean);
-function ovRef(){                        // per task: the starting design and the best mean among the ranked entries
+function ovRef(){                        // per task: the starting design and the best single run among the ranked entries, as the table scores them
   const ref = {};
-  const complete = OV.rows.filter(r=>r.complete);
-  OV_T().forEach(t=>{
-    const lang = (complete[0] && (t.rows.find(r=>r.entry===complete[0].entry)||{}).language) || 'verilog';
-    const start = (t.baselines[lang]||{}).cost;
-    const best = Math.min(...complete.map(r=>r.cells[t.id].mean));
-    ref[t.id] = {start, headroom: start && best < start ? start - best : 0};
-  });
+  OV.tasks.forEach(t=>{ ref[t.task] = {start: t.start, headroom: t.start && t.best!=null && t.best < t.start ? t.start - t.best : 0}; });
   return ref;
 }
 const ovScore = (ref, task, cost) => cost==null || !ref[task].headroom ? 0 : (ref[task].start - cost) / ref[task].headroom;
@@ -530,18 +524,8 @@ function ovAssignColors(){
 }
 function ovRunsOf(entry, task){ const row = task.rows.find(r=>r.entry===entry); return row ? row.runs : []; }
 
-function ovRefRuns(){                    // per task: the starting design and the best single run among the ranked entries
-  const ref = {}, complete = OV.rows.filter(r=>r.complete);
-  OV_T().forEach(t=>{
-    const lang = (complete[0] && (t.rows.find(r=>r.entry===complete[0].entry)||{}).language) || 'verilog';
-    const start = (t.baselines[lang]||{}).cost;
-    const best = Math.min(...complete.flatMap(r=>ovRunsOf(r.entry,t).map(run=>run.best_cost)).filter(v=>v!=null));
-    ref[t.id] = {start, headroom: start && best < start ? start - best : 0};
-  });
-  return ref;
-}
 function renderOvStrip(){
-  const ref = ovRefRuns(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
+  const ref = ovRef(), tasks = OV_T(), R = OV.rows.filter(r=>r.complete);
   const W=960, ml=230, mr=40, rowH=40, mt=28, mb=46, H=mt+R.length*rowH+mb;
   const pts = R.map(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t).map(run=>({r, t, run, v: ovScore(ref, t.id, run.best_cost)}))));
   const all = pts.flat().map(p=>p.v).concat([0, 1]);
@@ -592,7 +576,7 @@ function renderOvConv(){
   const ay = niceTicks(Math.min(...ys), Math.max(...ys), 6), y0=ay.lo, y1=ay.hi;
   const X = v => ml + (v-1)/(n-1)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   const aggName = {best:'best run per task', median:'median per task', mean:'mean per task'}[ovAgg];
-  $('ov-conv-desc').textContent = `Best verified score reached so far, ${byStep ? 'per agent step' : 'per evaluation'}: within each task the ${aggName} across the entry's runs, then the mean over the ${tasks.length} tasks with equal weight. Headroom-normalized units: 0 is the starting design, 1 the best known mean on each task. Ranked entries only.`;
+  $('ov-conv-desc').textContent = `Best verified score reached so far, ${byStep ? 'per agent step' : 'per evaluation'}: within each task the ${aggName} across the entry's runs, then the mean over the ${tasks.length} tasks with equal weight. Headroom-normalized units: 0 is the starting design, 1 the best single run known on each task, the table's reference. Ranked entries only.`;
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Headroom-normalized score so far, mean over tasks'});
   ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
   const st = n>60?10:5; for(let e=st;e<=n;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'}));
