@@ -561,22 +561,27 @@ function renderOvConv(){
   const allRuns = R.flatMap(r=>tasks.flatMap(t=>ovRunsOf(r.entry,t)));
   const n = Math.max(2, ...allRuns.map(run=>byStep ? (run.steps!=null ? run.steps : Math.max(...run.traj.filter(x=>x.s!=null).map(x=>x.s),0)) : run.n_evals));
   const xs = Array.from({length:n},(_,i)=>i+1);
-  // per entry: within each task aggregate the runs' best-so-far score at x (start = 0 until the first passing design), then the mean over the tasks
+  // per entry: within each task aggregate the runs' best-so-far score at x (start = 0 until the first passing design), then the mean over the tasks.
+  // As in the task charts, a run that has stopped keeps its last value; the series ends where the entry's longest run (over all tasks) ends,
+  // and `alive` counts the entry's runs still running at x (drawn dashed when not all of them are).
+  const mode = byStep ? 'step' : 'eval';
   const series = R.map(r=>{
     const perTask = tasks.map(t=>{
       const runs = ovRunsOf(r.entry, t);
       const mats = runs.map(run=>(byStep ? bestByStep(run,n) : bestByEval(run,n)).map(c=>ovScore(ref, t.id, c==null ? ref[t.id].start : c)));
       return xs.map((_,j)=>ovAggFn(mats.map(m=>m[j])));
     });
-    const y = xs.map((_,j)=>{ const v = perTask.map(p=>p[j]).filter(v=>v!=null); return v.length===tasks.length ? v.reduce((a,b)=>a+b,0)/v.length : null; });
-    return {r, y};
+    const ends = tasks.flatMap(t=>ovRunsOf(r.entry,t)).map(run=>runEnd(run,mode)), rend = Math.max(...ends, 0);
+    const y = xs.map((x,j)=>{ if(x>rend+1e-9) return null; const v = perTask.map(p=>p[j]).filter(v=>v!=null); return v.length===tasks.length ? v.reduce((a,b)=>a+b,0)/v.length : null; });
+    const alive = xs.map(x=>ends.filter(e=>e>=x-1e-9).length);
+    return {r, y, alive, n:ends.length};
   });
   const ys = series.flatMap(s=>s.y.filter(v=>v!=null)).concat([0,1]);
   const W=960, ml=56, mr=190, mt=24, mb=36, H=360;
   const ay = niceTicks(Math.min(...ys), Math.max(...ys), 6), y0=ay.lo, y1=ay.hi;
   const X = v => ml + (v-1)/(n-1)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   const aggName = {best:'best run per task', median:'median per task', mean:'mean per task'}[ovAgg];
-  $('ov-conv-desc').textContent = `Best verified score reached so far, ${byStep ? 'per agent step' : 'per evaluation'}: within each task the ${aggName} across the entry's runs, then the mean over the ${tasks.length} tasks with equal weight. Headroom-normalized units: 0 is the starting design, 1 the best single run known on each task, the table's reference. Ranked entries only.`;
+  $('ov-conv-desc').textContent = `Best verified score reached so far, ${byStep ? 'per agent step' : 'per evaluation'}: within each task the ${aggName} across the entry's runs, then the mean over the ${tasks.length} tasks with equal weight. Headroom-normalized units: 0 is the starting design, 1 the best single run known on each task, the table's reference. A run that has stopped keeps its last value; a line ends where the entry's longest run ends and is dashed where not all of its runs are still running. Ranked entries only.`;
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Headroom-normalized score so far, mean over tasks'});
   ay.ticks.forEach(v=>{ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'grid'})); svg.appendChild(txt(ml-8,Y(v)+4,v.toFixed(ay.dec),{'text-anchor':'end'})); });
   const st = n>60?10:5; for(let e=st;e<=n;e+=st) svg.appendChild(txt(X(e),H-mb+16,e,{'text-anchor':'middle'}));
@@ -588,8 +593,17 @@ function renderOvConv(){
   for(let i=1;i<ends.length;i++) if(ends[i].y-ends[i-1].y<13) ends[i].y=ends[i-1].y+13;
   series.forEach(s=>{
     if(ovHidden.has(s.r.entry)) return;
-    const pts = s.y.map((v,i)=>v==null?null:[X(xs[i]),Y(v)]).filter(Boolean);
-    if(pts.length>1) svg.appendChild(el('path',{d:pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join(''),fill:'none',stroke:ovColor[s.r.entry],'stroke-width':2,'stroke-linejoin':'round'}));
+    // one solid path while every run of the entry is still running, dashed segments afterwards
+    let segs=[], cur=null;
+    s.y.forEach((v,i)=>{
+      if(v==null){ cur=null; return; }
+      const full = s.alive[i]===s.n;
+      if(!cur || cur.full!==full){ const prev = cur; cur={full, pts:[]}; if(prev && prev.pts.length) cur.pts.push(prev.pts[prev.pts.length-1]); segs.push(cur); }
+      cur.pts.push([X(xs[i]),Y(v)]);
+    });
+    segs.forEach(sg=>{ if(sg.pts.length<2) return;
+      const d = sg.pts.map((p,i)=>(i?'L':'M')+p[0].toFixed(1)+' '+p[1].toFixed(1)).join('');
+      svg.appendChild(el('path',{d,fill:'none',stroke:ovColor[s.r.entry],'stroke-width':2,'stroke-linejoin':'round',...(sg.full?{}:{'stroke-dasharray':'5 4','opacity':'0.75'})})); });
     const e = ends.find(x=>x.s===s); if(e) svg.appendChild(txt(W-mr+8,e.y+4,`${s.r.label} ${e.v.toFixed(2)}`,{class:'lbl'}));
   });
   const hit = el('rect',{x:ml,y:mt,width:W-ml-mr,height:H-mt-mb,class:'hit'});
@@ -599,7 +613,7 @@ function renderOvConv(){
     const pt = svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const p=pt.matrixTransform(svg.getScreenCTM().inverse());
     const j = Math.max(0,Math.min(n-1,Math.round((p.x-ml)/(W-ml-mr)*(n-1))));
     cursor.setAttribute('x1',X(xs[j])); cursor.setAttribute('x2',X(xs[j])); cursor.setAttribute('visibility','visible');
-    const lines = series.filter(s=>!ovHidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>b.y[j]-a.y[j]).map(s=>`<span class="sw" style="background:${ovColor[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(2)}</span>`).join('<br>');
+    const lines = series.filter(s=>!ovHidden.has(s.r.entry)&&s.y[j]!=null).sort((a,b)=>b.y[j]-a.y[j]).map(s=>`<span class="sw" style="background:${ovColor[s.r.entry]}"></span>${esc(s.r.label)} <span class="mono">${s.y[j].toFixed(2)}</span>${s.alive[j]<s.n?` <span style="opacity:.65">(${s.alive[j]} of ${s.n} runs still running)</span>`:''}`).join('<br>');
     showTip(ev,`<b>after ${byStep?'step':'evaluation'} ${xs[j]}</b> · ${esc(aggName)}, mean over tasks<br>${lines}`);
   });
   hit.addEventListener('mouseleave',()=>{cursor.setAttribute('visibility','hidden');hideTip();});
