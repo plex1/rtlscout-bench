@@ -91,6 +91,7 @@ nav:not([hidden])+.repos{margin-left:0}
 .stat b{display:block;font-size:1.45rem;font-weight:500;margin-top:2px;letter-spacing:-.01em}
 .stat i{display:block;font-style:normal;font-size:.8rem;color:var(--ink-2);margin-top:2px}
 .tasks{margin-top:22px}
+.seg .seg-lbl{align-self:center;padding:0 8px 0 12px;border-left:1px solid var(--line);font-size:.74rem;letter-spacing:.06em;text-transform:uppercase;color:var(--ink-3);white-space:nowrap}
 /* sections */
 section{padding-block:36px;border-top:1px solid var(--line-soft);scroll-margin-top:var(--top-h,64px)}
 .sec-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;flex-wrap:wrap;margin-bottom:6px}
@@ -206,7 +207,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
   <h1>How far can an LLM push a hardware design?</h1>
   <p class="lede" id="lede">Each model drives the <a href="https://github.com/huawei-csl/rtlscout">RTL Scout</a> agent for a fixed number of steps on a Verilog starting design, with a self-checking testbench and a full synthesis flow in the loop. The score is the best verified cost the agent reached. Lower is better.</p>
   <div class="tasks" id="task-wrap" hidden>
-    <div class="seg" role="group" aria-label="Task" id="task-seg"></div>
+    <div class="seg" role="group" aria-label="Leaderboard: overall or one task" id="task-seg"></div>
   </div>
   </div>
   <div class="hero-art" aria-hidden="true"><img class="light" src="assets/rtlscout-light.png" alt=""><img class="dark" src="assets/rtlscout-dark.png" alt=""></div>
@@ -312,8 +313,8 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div><h2>Designs</h2><p id="des-desc"></p></div>
     <div class="segs">
       <div class="seg" role="group" aria-label="Axes">
-        <button aria-pressed="true" data-ax="log">Log-log</button>
-        <button aria-pressed="false" data-ax="lin">Linear</button>
+        <button aria-pressed="true" data-ax="lin">Linear</button>
+        <button aria-pressed="false" data-ax="log">Log-log</button>
       </div>
     </div>
   </div>
@@ -389,7 +390,7 @@ let view = OV ? 'overall' : 'task';                              // the page ope
 let ovMode = 'rank';                                             // 'rank' (mean rank) or 'score' (headroom-normalized)
 let ovX = 'step', ovAgg = 'median';                              // the overall convergence chart: axis and within-task aggregation
 const ovHidden = new Set();
-let convAgg = 'median', convX = 'step', desAx = 'log';
+let convAgg = 'median', convX = 'step', desAx = 'lin';          // the designs chart opens on linear axes
 const desHidden = new Set();
 const hidden = new Set();
 const tip = $('tip');
@@ -961,7 +962,8 @@ function renderAll(){
 
 /* ---------- task selector (hidden while there is a single task) ---------- */
 if(D.tasks.length > 1){
-  $('task-seg').innerHTML = (OV ? `<button data-task="overall" aria-pressed="true">Overall</button>` : '')
+  // one control: the overall leaderboard first, then a muted "per task" divider and the individual tasks
+  $('task-seg').innerHTML = (OV ? `<button data-task="overall" aria-pressed="true">Overall</button><span class="seg-lbl" aria-hidden="true">per task:</span>` : '')
     + D.tasks.map((t,i)=>`<button data-task="${i}" aria-pressed="${!OV && i===0}">${esc(t.title)}</button>`).join('');
   show('task-wrap', true);
   document.querySelectorAll('#task-seg button').forEach(bt=>bt.addEventListener('click',()=>{
