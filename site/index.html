@@ -496,7 +496,7 @@ function renderOverall(){
   };
   complete.forEach((r,i)=>{
     const main = mainOf(r);
-    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':''}${r.suites.length>1?'<span class="pill seed">mixed suites</span>':''}</div></td>
+    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':'<span class="pill">proprietary</span>'}${r.suites.length>1?'<span class="pill seed">mixed suites</span>':''}</div></td>
       <td class="num"><b>${main}</b></td><td class="num delta ${r.reduction_pct<0?'worse':''}">${pct(-r.reduction_pct)}</td>${tasks.map(t=>cellOf(r,t,true)).join('')}
       <td class="num">${nT} / ${nT}</td><td class="num">${r.usd_total==null?'—':(r.usd_total/nT).toFixed(1)}</td><td>${esc(r.suite)}</td></tr>`;
   });
@@ -504,7 +504,7 @@ function renderOverall(){
     const have = Object.keys(r.cells).length;
     const penTip = `penalized: a task not run counts as rank ${OV.worst_rank} (below every ranked entry) and as the worst score on that task; missing: ${r.missing.join(', ')}`;
     const main = mainOf(r);
-    h += `<tr class="partial"><td class="rank">—</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':''}</div></td>
+    h += `<tr class="partial"><td class="rank">—</td><td class="model">${esc(r.label)}<div class="pills">${r.open_weights?'<span class="pill open">open weights</span>':'<span class="pill">proprietary</span>'}</div></td>
       <td class="num" title="${esc(penTip)}">${main}<span class="pen">‡</span></td><td class="num">—</td>${tasks.map(t=>cellOf(r,t,true)).join('')}<td class="num" title="${esc('missing: '+r.missing.join(', '))}">${have} / ${nT}</td><td class="num">—</td><td>${esc(r.suite)}</td></tr>`;
   });
   $('ov-table').innerHTML = h + '</tbody>';
@@ -682,7 +682,7 @@ function renderTable(){
   let h = `<thead><tr><th></th><th>Model</th><th class="num">n</th><th class="num">${esc(short())} mean ± sd<br><span style="text-transform:none;letter-spacing:0">${esc(unit())}</span></th><th class="num">best run</th><th class="num">vs. start</th><th class="num">runtime / run</th><th class="num">$ / run</th></tr></thead><tbody>`;
   R.forEach((r,i)=>{
     const a=r.agg, b=baseOf(r), d=b ? 100*(a.mean/b-1) : null;
-    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}<div class="pills">${r.open?'<span class="pill open">open weights</span>':(r.vendor?`<span class="pill">${esc(r.vendor)}</span>`:'')}${r.seed?`<span class="pill seed">measured before ${esc(D.suite)}</span>`:''}</div></td>
+    h += `<tr class="${i===0?'top':''}"><td class="rank">${i+1}</td><td class="model"><span class="sw" style="background:${colorOf[r.entry]}"></span>${esc(r.label)}<div class="pills">${r.open?'<span class="pill open">open weights</span>':'<span class="pill">proprietary</span>'}${r.seed?`<span class="pill seed">measured before ${esc(D.suite)}</span>`:''}</div></td>
       <td class="num">${a.n}</td>
       <td class="num"><span class="bar" style="width:${(a.mean/maxMean*70).toFixed(0)}px"></span>${fmtC(a.mean)} <span class="sd">± ${sc(a.sd).toFixed(3)}</span></td>
       <td class="num">${fmtC(a.min)}</td>
