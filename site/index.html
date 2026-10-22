@@ -265,10 +265,17 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </div></section>
 
 <section id="ov-cost" hidden><div class="wrap">
-  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Headroom score, the mean over the tasks, against the mean API spend per run across the tasks, at list prices from each run's recorded token usage.</p></div></div>
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Headroom score, the mean over the tasks, against the mean API spend per run across the tasks, from each run's recorded token usage at list prices (see cost accounting below).</p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Error bars"><span class="seg-lbl">error bars</span>
+        <button aria-pressed="true" data-sd="off">Off</button>
+        <button aria-pressed="false" data-sd="on">On</button>
+      </div>
+    </div>
+  </div>
   <div class="card" style="margin-top:14px">
     <div class="chart" id="ov-scatter"></div>
-    <div class="cap">The stepped line connects the Pareto front: the entries no other entry beats on both axes, cheaper or equal and at least as good. Vertical bars span one standard deviation of the per-task scores, horizontal bars one standard deviation of the per-task mean spend.</div>
+    <div class="cap" id="ov-scatter-cap"></div>
   </div>
 </div></section>
 
@@ -327,10 +334,17 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </div></section>
 
 <section id="cost"><div class="wrap">
-  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Runtime per run is in the table above.</p></div></div>
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, from each run's recorded token usage at list prices (see cost accounting below). Runtime per run is in the table above.</p></div>
+    <div class="segs">
+      <div class="seg" role="group" aria-label="Error bars"><span class="seg-lbl">error bars</span>
+        <button aria-pressed="true" data-sd="off">Off</button>
+        <button aria-pressed="false" data-sd="on">On</button>
+      </div>
+    </div>
+  </div>
   <div class="card" style="margin-top:14px">
     <div class="chart" id="scatter"></div>
-    <div class="cap" id="scatter-cap">Error bars are one standard deviation on both axes.</div>
+    <div class="cap" id="scatter-cap"></div>
   </div>
 </div></section>
 
@@ -350,7 +364,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div><h3>The design</h3><p id="m-design"></p></div>
     <div><h3>The score</h3><p id="m-score"></p></div>
     <div><h3>The agent loop</h3><p id="m-agent"></p></div>
-    <div><h3>Cost accounting</h3><p>Dollars per run come from each run's recorded token usage (input and output tokens, plus cache writes and reads where a provider reports them) at the list prices given in the per-entry notes below. Prices and token counts are stored with every run, so the figure can be recomputed.</p></div>
+    <div><h3>Cost accounting</h3><p>Dollars per run come from each run's recorded token usage (input and output tokens, plus cache writes and reads where a provider reports them) at the list prices given in the per-entry notes below. Prices and token counts are stored with every run, so the figure can be recomputed. Where a provider's prompt-cache discount is applied on the bill but not visible in the recorded usage, the model's entry carries a measured cost factor (list-price cost over the charge on the account, with a note on the measurement) and the dollar figures shown are divided by it; the run records keep the list-price figure.</p></div>
   </div>
   <div class="fn" id="fn"></div>
 </div></section>
@@ -392,6 +406,7 @@ let ovMode = 'rank';                                             // 'rank' (mean
 let ovX = 'step', ovAgg = 'median';                              // the overall convergence chart: axis and within-task aggregation
 const ovHidden = new Set();
 let convAgg = 'median', convX = 'step', desAx = 'lin';          // the designs chart opens on linear axes
+let costSd = false;                                              // error bars on the result-vs-cost charts: off until switched on
 const desHidden = new Set();
 const hidden = new Set();
 const tip = $('tip');
@@ -641,8 +656,9 @@ function renderOvScatter(){
   const sdOf = vals => { const m = vals.reduce((a,b)=>a+b,0)/vals.length; return vals.length>1 ? Math.sqrt(vals.reduce((a,b)=>a+(b-m)*(b-m),0)/(vals.length-1)) : 0; };
   const P = R.map(r=>{ const sc = tasks.map(t=>r.cells[t.id].score), us = tasks.map(t=>r.cells[t.id].usd).filter(v=>v!=null); return {r, x:r.usd_total/tasks.length, y:r.score, sx:sdOf(us), sy:sdOf(sc)}; });
   const W=960, ml=56, mr=30, mt=24, mb=40, H=340;
-  const ax = niceTicks(0, Math.max(...P.map(p=>p.x+p.sx))*1.08, 8);
-  const ay = niceTicks(Math.min(0, ...P.map(p=>p.y-p.sy)), Math.max(1, ...P.map(p=>p.y+p.sy)), 6);
+  const sdx = p => costSd ? p.sx : 0, sdy = p => costSd ? p.sy : 0;     // the bars widen the axes only when shown
+  const ax = niceTicks(0, Math.max(...P.map(p=>p.x+sdx(p)))*1.08, 8);
+  const ay = niceTicks(Math.min(0, ...P.map(p=>p.y-sdy(p))), Math.max(1, ...P.map(p=>p.y+sdy(p))), 6);
   const x0=0, x1=ax.hi, y0=ay.lo, y1=ay.hi;
   const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Mean headroom score versus dollars per run'});
@@ -653,7 +669,7 @@ function renderOvScatter(){
   [[0,'start'],[1,'best known']].forEach(([v,l])=>{ if(v>=y0&&v<=y1){ svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(v),y2:Y(v),class:'ref'})); svg.appendChild(txt(W-mr,Y(v)-5,l,{'text-anchor':'end'})); } });
   // the Pareto front: entries no other entry beats on both axes (cheaper or equal and at least as good, better in one)
   const front = P.filter(p=>!P.some(q=>q!==p && q.x<=p.x && q.y>=p.y && (q.x<p.x || q.y>p.y))).sort((a,b)=>a.x-b.x);
-  P.forEach(p=>{                          // error bars first, so the front and the dots stay on top of them
+  if(costSd) P.forEach(p=>{               // error bars first, so the front and the dots stay on top of them
     const x=X(p.x), y=Y(p.y);
     svg.appendChild(el('line',{x1:X(Math.max(0,p.x-p.sx)),x2:X(p.x+p.sx),y1:y,y2:y,class:'sdbar'}));
     svg.appendChild(el('line',{x1:x,x2:x,y1:Y(Math.min(y1,p.y+p.sy)),y2:Y(Math.max(y0,p.y-p.sy)),class:'sdbar'}));
@@ -671,7 +687,12 @@ function renderOvScatter(){
     svg.appendChild(hit);
   });
   const host=$('ov-scatter'); host.innerHTML=''; host.appendChild(svg);
+  $('ov-scatter-cap').textContent = 'The stepped line connects the Pareto front: the entries no other entry beats on both axes, cheaper or equal and at least as good. '
+    + (costSd ? 'Vertical bars span one standard deviation of the per-task scores, horizontal bars one standard deviation of the per-task mean spend.'
+              : 'Switch the error bars on for one standard deviation of the per-task scores (vertical) and of the per-task mean spend (horizontal).');
+  syncSdButtons();
 }
+function syncSdButtons(){ document.querySelectorAll('.seg button[data-sd]').forEach(b=>b.setAttribute('aria-pressed',(b.dataset.sd==='on')===costSd?'true':'false')); }
 
 /* ---------- leaderboard table ---------- */
 function renderTable(){
@@ -904,8 +925,9 @@ function renderScatter(){
   show('cost', R.length>0);
   if(!R.length) return;
   const W=960, ml=56, mr=30, mt=24, mb=40, H=340;
-  const ax = niceTicks(0, Math.max(...R.map(r=>r.agg.usd+r.agg.usd_sd))*1.08, 8);
-  const ay = niceTicks(Math.min(...R.map(r=>sc(r.agg.mean-r.agg.sd)).concat(langs.map(l=>sc(T.baselines[l].cost)))), Math.max(...R.map(r=>sc(r.agg.mean+r.agg.sd)).concat(langs.map(l=>sc(T.baselines[l].cost)))), 6);
+  const usdSd = a => costSd ? a.usd_sd : 0, cSd = a => costSd ? a.sd : 0;     // the bars widen the axes only when shown
+  const ax = niceTicks(0, Math.max(...R.map(r=>r.agg.usd+usdSd(r.agg)))*1.08, 8);
+  const ay = niceTicks(Math.min(...R.map(r=>sc(r.agg.mean-cSd(r.agg))).concat(langs.map(l=>sc(T.baselines[l].cost)))), Math.max(...R.map(r=>sc(r.agg.mean+cSd(r.agg))).concat(langs.map(l=>sc(T.baselines[l].cost)))), 6);
   const x0=0, x1=ax.hi, y0=ay.lo, y1=ay.hi;
   const X = v => ml + (v-x0)/(x1-x0)*(W-ml-mr), Y = v => mt + (y1-v)/(y1-y0)*(H-mt-mb);
   const svg = el('svg',{viewBox:`0 0 ${W} ${H}`,role:'img','aria-label':'Mean cost reached versus dollars per run'});
@@ -916,8 +938,10 @@ function renderScatter(){
   langs.forEach(l=>{ const b=sc(T.baselines[l].cost); svg.appendChild(el('line',{x1:ml,x2:W-mr,y1:Y(b),y2:Y(b),class:'ref'})); svg.appendChild(txt(W-mr,Y(b)-5,'start'+(langs.length>1?' '+(LANG[l]||l):''),{'text-anchor':'end'})); });
   R.forEach(r=>{
     const a=r.agg, x=X(a.usd), y=Y(sc(a.mean));
-    svg.appendChild(el('line',{x1:X(Math.max(0,a.usd-a.usd_sd)),x2:X(a.usd+a.usd_sd),y1:y,y2:y,class:'sdbar'}));
-    svg.appendChild(el('line',{x1:x,x2:x,y1:Y(sc(a.mean+a.sd)),y2:Y(Math.max(y0,sc(a.mean-a.sd))),class:'sdbar'}));
+    if(costSd){
+      svg.appendChild(el('line',{x1:X(Math.max(0,a.usd-a.usd_sd)),x2:X(a.usd+a.usd_sd),y1:y,y2:y,class:'sdbar'}));
+      svg.appendChild(el('line',{x1:x,x2:x,y1:Y(sc(a.mean+a.sd)),y2:Y(Math.max(y0,sc(a.mean-a.sd))),class:'sdbar'}));
+    }
     svg.appendChild(el('circle',{cx:x,cy:y,r:7,class:'dot',style:`fill:${colorOf[r.entry]}`}));
     svg.appendChild(txt(x+11,y+4,r.label,{class:'lbl'}));
     const hit = el('circle',{cx:x,cy:y,r:14,class:'hit'});
@@ -925,6 +949,8 @@ function renderScatter(){
     svg.appendChild(hit);
   });
   const host=$('scatter'); host.innerHTML=''; host.appendChild(svg);
+  $('scatter-cap').textContent = costSd ? 'Error bars are one standard deviation on both axes.' : 'Switch the error bars on for one standard deviation on both axes.';
+  syncSdButtons();
 }
 
 /* ---------- per-run tables ---------- */
@@ -948,7 +974,7 @@ function renderMethod(){
   $('m-agent').innerHTML = `The RTL Scout react agent gets the starting design, the testbench contract, and tools to read, edit and evaluate files. It has ${steps.length===1?steps[0]:'a fixed number of'} steps; every <code>run_evaluation</code> call checks the design against the testbench and runs the scoring flow. The best passing design is snapshotted as the run's result. Repeats are independent launches; there is no sampling seed.`;
   let h = '';
   const noted = T.rows.filter(r=>r.runs.length);
-  if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
+  if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}${r.cost_factor?`, billed at list ÷ ${r.cost_factor} (measured cost factor)`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
   if(T.footnotes && T.footnotes.length) h += '<p style="margin-top:14px"><strong>Notes</strong></p><ul>' + T.footnotes.map(f=>`<li>${esc(f)}</li>`).join('') + '</ul>';
   $('fn').innerHTML = h;
 }
@@ -988,6 +1014,7 @@ if(D.tasks.length > 1){
 document.querySelectorAll('.seg button[data-ov]').forEach(bt=>bt.addEventListener('click',()=>{ ovMode = bt.dataset.ov; renderOverall(); }));
 document.querySelectorAll('.seg button[data-ovx]').forEach(bt=>bt.addEventListener('click',()=>{ ovX = bt.dataset.ovx; renderOvConv(); }));
 document.querySelectorAll('.seg button[data-ax]').forEach(bt=>bt.addEventListener('click',()=>{ desAx = bt.dataset.ax; renderDesigns(); }));
+document.querySelectorAll('.seg button[data-sd]').forEach(bt=>bt.addEventListener('click',()=>{ costSd = bt.dataset.sd==='on'; renderOvScatter(); renderScatter(); }));
 document.querySelectorAll('.seg button[data-ovagg]').forEach(bt=>bt.addEventListener('click',()=>{ ovAgg = bt.dataset.ovagg; renderOvConv(); }));
 document.querySelectorAll('.seg button[data-agg]').forEach(bt=>bt.addEventListener('click',()=>{
   convAgg = bt.dataset.agg; document.querySelectorAll('.seg button[data-agg]').forEach(b=>b.setAttribute('aria-pressed',b===bt?'true':'false')); renderConv();

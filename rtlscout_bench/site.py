@@ -84,7 +84,8 @@ def build_data(matrix: Matrix, data: Path) -> tuple[dict, list[dict]]:
             rows.append(dict(entry=row["entry"], label=row["label"], name=row["name"], model=row["model"],
                              vendor=row["vendor"], open=row["open_weights"] is True, language=row["language"],
                              reasoning_effort=row["reasoning_effort"], flags=row["flags"], max_steps=row["max_steps"],
-                             suite=row["suite"], seed=row["seed"], price=row["price"], note=row["note"],
+                             suite=row["suite"], seed=row["seed"], price=row["price"], cost_factor=row["cost_factor"],
+                             note=row["note"],
                              agg=row["agg"], runs=[_run_json(task.id, row["entry"], r) for r in row["runs"]]))
         tasks.append(dict(id=task.id, title=board["title"], description=board["description"],
                           metric=task.cost_metric, metric_label=board["metric_label"], unit=board["unit"],

@@ -657,6 +657,9 @@ def check_data(data: Path, matrix: Matrix, *, selected_only: bool = False) -> tu
             errors.append(f"models.json: {spec}: \"open_weights\" must be true or false")
         if not isinstance((info or {}).get("name"), str):
             errors.append(f"models.json: {spec}: \"name\" is required")
+        factor = (info or {}).get("cost_factor")
+        if factor is not None and not (isinstance(factor, (int, float)) and not isinstance(factor, bool) and factor > 0):
+            errors.append(f"models.json: {spec}: \"cost_factor\" must be a positive number (list-price cost over the bill)")
 
     boards = {}
     for p in sorted((data / "leaderboards").glob("*.json")):
