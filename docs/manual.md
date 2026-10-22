@@ -427,6 +427,12 @@ USD per million tokens. Without prices the run is still recorded but has no doll
 }
 ```
 
+Two optional fields cover a provider whose prompt-cache discount is applied on the bill but does not show in the
+usage the engine records: `cost_factor`, the list-price cost of a set of runs divided by what the account was
+actually charged for them, and `cost_factor_note`, how that was measured. The boards divide the model's dollar
+figures by the factor; the records keep the list-price figure (`usd`) and the prices, so nothing is lost if the
+factor is revised.
+
 **The open-weights policy.** `policy: {open_weights_only: true}` at the top of the matrix restricts the
 leaderboard to models marked `"open_weights": true` in `data/models.json`. While it is on:
 
@@ -877,7 +883,8 @@ many runs share the machine, so compare runtimes only between runs of one campai
 **Cost** is the run's token usage times list prices: input tokens × input price + output tokens × output price,
 plus cache writes and cache reads at their own prices where a provider reports them (both default to the input
 price), in USD per million tokens from `data/models.json` at the time the run is recorded. The record stores
-the token counts and the prices used, so the figure can be recomputed.
+the token counts and the prices used, so the figure can be recomputed. A model with a measured `cost_factor` in
+`data/models.json` (see "Adding a model") has its dollar figures divided by it on the boards.
 
 ---
 

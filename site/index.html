@@ -265,7 +265,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </div></section>
 
 <section id="ov-cost" hidden><div class="wrap">
-  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Headroom score, the mean over the tasks, against the mean API spend per run across the tasks, at list prices from each run's recorded token usage.</p></div></div>
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Headroom score, the mean over the tasks, against the mean API spend per run across the tasks, from each run's recorded token usage at list prices (see cost accounting below).</p></div></div>
   <div class="card" style="margin-top:14px">
     <div class="chart" id="ov-scatter"></div>
     <div class="cap">The stepped line connects the Pareto front: the entries no other entry beats on both axes, cheaper or equal and at least as good. Vertical bars span one standard deviation of the per-task scores, horizontal bars one standard deviation of the per-task mean spend.</div>
@@ -327,7 +327,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
 </div></section>
 
 <section id="cost"><div class="wrap">
-  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, at list prices from each run's recorded token usage. Runtime per run is in the table above.</p></div></div>
+  <div class="sec-head"><div><h2>Result vs. cost</h2><p>Mean cost reached against mean API spend per run, from each run's recorded token usage at list prices (see cost accounting below). Runtime per run is in the table above.</p></div></div>
   <div class="card" style="margin-top:14px">
     <div class="chart" id="scatter"></div>
     <div class="cap" id="scatter-cap">Error bars are one standard deviation on both axes.</div>
@@ -350,7 +350,7 @@ footer .wrap{display:flex;justify-content:space-between;gap:16px;flex-wrap:wrap}
     <div><h3>The design</h3><p id="m-design"></p></div>
     <div><h3>The score</h3><p id="m-score"></p></div>
     <div><h3>The agent loop</h3><p id="m-agent"></p></div>
-    <div><h3>Cost accounting</h3><p>Dollars per run come from each run's recorded token usage (input and output tokens, plus cache writes and reads where a provider reports them) at the list prices given in the per-entry notes below. Prices and token counts are stored with every run, so the figure can be recomputed.</p></div>
+    <div><h3>Cost accounting</h3><p>Dollars per run come from each run's recorded token usage (input and output tokens, plus cache writes and reads where a provider reports them) at the list prices given in the per-entry notes below. Prices and token counts are stored with every run, so the figure can be recomputed. Where a provider's prompt-cache discount is applied on the bill but not visible in the recorded usage, the model's entry carries a measured cost factor (list-price cost over the charge on the account, with a note on the measurement) and the dollar figures shown are divided by it; the run records keep the list-price figure.</p></div>
   </div>
   <div class="fn" id="fn"></div>
 </div></section>
@@ -948,7 +948,7 @@ function renderMethod(){
   $('m-agent').innerHTML = `The RTL Scout react agent gets the starting design, the testbench contract, and tools to read, edit and evaluate files. It has ${steps.length===1?steps[0]:'a fixed number of'} steps; every <code>run_evaluation</code> call checks the design against the testbench and runs the scoring flow. The best passing design is snapshotted as the run's result. Repeats are independent launches; there is no sampling seed.`;
   let h = '';
   const noted = T.rows.filter(r=>r.runs.length);
-  if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
+  if(noted.length) h += '<strong>Per-entry notes</strong><ol>' + noted.map(r=>`<li><b>${esc(r.label)}</b> (<code>${esc(r.model)}</code>${r.price?`, $${r.price[0]} / $${r.price[1]} per million tokens in / out`:''}${r.cost_factor?`, billed at list ÷ ${r.cost_factor} (measured cost factor)`:''}; ${esc(r.suite)}${r.flags&&r.flags.length?', flags <code>'+esc(r.flags.join(' '))+'</code>':''})${r.note?': '+esc(r.note):''}</li>`).join('') + '</ol>';
   if(T.footnotes && T.footnotes.length) h += '<p style="margin-top:14px"><strong>Notes</strong></p><ul>' + T.footnotes.map(f=>`<li>${esc(f)}</li>`).join('') + '</ul>';
   $('fn').innerHTML = h;
 }

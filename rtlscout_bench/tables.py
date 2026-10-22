@@ -8,7 +8,8 @@
 
 Per entry the table reports the best cost reached per run as mean ± sample standard deviation over the n selected
 runs, the best single run, the mean relative to the unmodified starting point, runtime per run and API cost
-per run at list prices. This module also holds the aggregation that the site generator and ``publish`` share.
+per run at list prices (divided by the model's measured ``cost_factor`` where ``models.json`` records one). This
+module also holds the aggregation that the site generator and ``publish`` share.
 """
 from __future__ import annotations
 
@@ -109,13 +110,18 @@ def load_board(data: Path, task_id: str, current_suite: str | None = None, model
                                  f"set (python -m rtlscout_bench.record --exclude ... --reason ...).")
         info = models.get(recs[0]["model"], {})
         name = info.get("name") or recs[0]["model"]
+        factor = info.get("cost_factor")        # list-price cost over the bill measured for this model (models.json)
+        if factor:                              # the boards show the bill; the record keeps the list-price figure
+            for rec in recs:
+                if rec.get("usd") is not None:
+                    rec["usd_list"], rec["usd"] = rec["usd"], rec["usd"] / factor
         rows.append(dict(
             entry=entry, model=recs[0]["model"], name=name, vendor=info.get("vendor"),
             open_weights=info.get("open_weights"), language=recs[0]["language"],
             reasoning_effort=recs[0]["reasoning_effort"], flags=recs[0]["flags"], max_steps=recs[0]["max_steps"],
             suite=recs[0]["suite"], seed=current_suite is not None and recs[0]["suite"] != current_suite,
-            label=_label(name, recs[0]), price=recs[0].get("price_per_mtok"), note=lb["notes"].get(entry),
-            runs=recs, agg=aggregate(recs, baseline_cost(lb, recs[0]["language"]))))
+            label=_label(name, recs[0]), price=recs[0].get("price_per_mtok"), cost_factor=factor,
+            note=lb["notes"].get(entry), runs=recs, agg=aggregate(recs, baseline_cost(lb, recs[0]["language"]))))
     seen: dict[str, int] = {}
     for row in rows:
         seen[row["label"]] = seen.get(row["label"], 0) + 1
@@ -198,7 +204,8 @@ def _caption(board: dict) -> str:
         parts.append(f"Starting point: {starts} ({_unit(board)}).")
     parts.append(f"Numbers: best {board['metric_label']} reached per run, mean ± sample sd over n independent runs; "
                  f"`best run` is the single best run, `vs. start` the mean relative to the unmodified starting "
-                 f"point, runtime the duration of the agent run, $/run the API cost from recorded token usage at list prices.")
+                 f"point, runtime the duration of the agent run, $/run the API cost from recorded token usage at list prices, "
+                 f"divided by the model's measured cost factor where models.json records one.")
     return " ".join(parts)
 
 
