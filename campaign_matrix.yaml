@@ -70,6 +70,9 @@ entries:                               # open-weights models only, for now
   - id: kimi-k3-high                   # same model, second row with a different reasoning effort
     model: openrouter:moonshotai/kimi-k3
     reasoning_effort: high
+  - id: kimi-k3.1-pro                  # Moonshot's K3.1 Pro (API 2026-10-23), default effort; the vendor's own endpoint (mxfp4)
+    model: openrouter:moonshotai/kimi-k3.1-pro
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: moonshotai}
   - id: glm-5.3-flash
     model: openrouter:z-ai/glm-5.3-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
