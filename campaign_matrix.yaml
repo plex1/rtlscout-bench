@@ -73,9 +73,9 @@ entries:                               # open-weights models only, for now
   - id: kimi-k3.1-pro                  # Moonshot's K3.1 Pro (API 2026-10-23), default effort; the vendor's own endpoint (mxfp4)
     model: openrouter:moonshotai/kimi-k3.1-pro
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: moonshotai}
-  - id: minimax-m3.1-flash             # MiniMax M3.1 Flash (weights 2026-10-17), default effort (thinking on); the vendor's own endpoint
-    model: openrouter:minimax/minimax-m3.1-flash
-    env: {RTLSCOUT_OPENROUTER_PROVIDERS: minimax}
+  - id: qwen4-max                      # Alibaba's Qwen4 Max (API 2026-11-16; open weights announced, not yet on Hugging Face), Alibaba's endpoint, default effort
+    model: openrouter:qwen/qwen4-max
+    env: {RTLSCOUT_OPENROUTER_PROVIDERS: alibaba}
   - id: glm-5.3-flash
     model: openrouter:z-ai/glm-5.3-flash
     env: {RTLSCOUT_OPENROUTER_PROVIDERS: z-ai}   # served by the vendor's own endpoint only (no OpenRouter fallback)
